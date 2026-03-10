@@ -8,6 +8,8 @@ FUNKCE APLIKACE:
 • Nastavení barev dokumentu
 • Zvýraznění syntaxe kódu
 • Základní funkce (datum a čas, nahrazení, matematické, hashovací)
+• Přidání šifrování, podpisu a jiných bezpečnostních funkcí
+• Bluetooth přenos souborů mezi telefony
 • Zobrazení uživatelského návodu a licence přímo v aplikaci
 
 POSTUP:
