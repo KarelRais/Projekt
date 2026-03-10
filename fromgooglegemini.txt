@@ -1,0 +1,6 @@
+git stash (Tvoje změny zmizí z oken VS Code, ale jsou v bezpečí v paměti Gitu).
+git pull origin main --rebase
+git stash pop (Změny se ti vrátí zpět do souborů).
+git add .
+git commit -m "finalni verze"
+git push origin main
