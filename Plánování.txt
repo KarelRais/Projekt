@@ -1,0 +1,20 @@
+CO TO BUDE: Android aplikace
+ÚČEL APLIKACE: Textový editor
+PROČ: Splní všechny požadavky; Open-source Android editorů (a čehokoliv open-source) není nikdy dost; Univerzální a užitečná aplikace
+
+FUNKCE APLIKACE:
+• Stylování písma
+• Vkládání obrázků, tabulek, odkazů
+• Nastavení barev dokumentu
+• Zvýraznění syntaxe kódu
+• Základní funkce (datum a čas, nahrazení, matematické, hashovací)
+• Zobrazení uživatelského návodu a licence přímo v aplikaci
+
+POSTUP:
+1. Zápis licence
+2. Inicializace GitHub projektu
+3. Vizuální návrh aplikace + uživatelský návod
+4. Knihovna pro práci se soubory
+5. Funkčnost ovládacích prvků samotné aplikace
+6. Přidání funkcí vkládání a nastavení barev
+7. Přidání ostatních funkcí
