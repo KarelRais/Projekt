@@ -1,0 +1,24 @@
+LICENČNÍ PODMÍNKY APLIKACE ANDOPED (= Android Open Editor)
+
+HLAVA I. ÚDAJE O APLIKACI
+Název: ANDOPED
+Plný název: Android Open Editor
+Autor: Karel Rais (nezávislý autor)
+Rok vydání: 2026
+
+HLAVA II. POUŽITÍ APLIKACE
+1. Aplikace je určena primárně jako textový procesor.
+2. Použití k jiným účelům (samostatné použití doplňkových funkcí) je povolené a zcela normální.
+3. Aplikace se nemá používat k psaní a propagaci závadného obsahu. Zejména pak k propagaci trestných činů, sebevražd, návykových látek, nacistické či jiné diktatury apod.
+4. Aplikace je plně zdarma, bez obchodních triků a bez reklam.
+5. V případě zájmu o drobný finanční dar (maximálně 50 Kč) pište na github.com/KarelRais/Projekt.
+6. Vzhledem k bezplatné distribuci aplikace neplatí žádná oficiální záruka nebo podpora.
+
+HLAVA III. POUŽITÍ ZDROJOVÉHO KÓDU
+1. Zdrojový kód je volně k dispozici na github.com/KarelRais/Projekt.
+2. Lze vytvořit aplikaci inspirovanou touto.
+3. Při použití zdrojového kódu je třeba: zachovat stejnou licenci, uvést zdroj, umožnit bezplatné použití nové aplikace a přístup k jejímu zdrojovému kódu.
+
+HLAVA IV. POZNÁMKY
+1. Licence není oficiálně závazná, žádné penále za její porušení nevymáháme, ale můžeme odmítnout technickou podporu.
+2. Bod II./3. však může být právně závazný, pokud je závadný obsah propagován.
