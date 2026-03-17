@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 
-class FileService {
+class FileSystemService {
   Future<Directory> _getDir() async {
     return await getApplicationDocumentsDirectory();
   }
