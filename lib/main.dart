@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'bluetooth_service.dart';
 import 'filesystem_service.dart';
 import 'package:intl/intl.dart';
+import 'package:dart_quill_delta/dart_quill_delta.dart';
 
 void main() {
   runApp(const MyApp());
@@ -37,15 +38,24 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  BluetoothService bt1 = BluetoothService();
   FileSystemService fs1 = FileSystemService();
+  TextEditingController tec1 = TextEditingController();
+  TextEditingController tec2 = TextEditingController();
+  TextEditingController tec3 = TextEditingController();
+  TextEditingController tec4 = TextEditingController();
+  TextEditingController tec5 = TextEditingController();
+  TextEditingController tec6 = TextEditingController();
+  TextEditingController tec7 = TextEditingController();
+  TextEditingController tec8 = TextEditingController();
   String filePath = '';
+  int lang = 0;
 
   void fileOpen(QuillController controller) async {
     final dir = await getApplicationDocumentsDirectory();
     final result = await FilePicker.platform.pickFiles(
       initialDirectory: dir.path,
       type: FileType.custom,
-      allowedExtensions: ['json', 'txt'],
     );
     if (result == null) return;
     filePath = result.files.single.name;
@@ -67,7 +77,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (filePath == '') {
       fileSaveAs(context, controller);
     }
-    if (filePath.endsWith('.json')) {
+    else if (filePath.endsWith('.json')) {
       await fs1.saveFormatted(filePath, controller);
     } else {
       await fs1.savePlain(filePath, controller);
@@ -112,6 +122,361 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void fileBtOut(QuillController controller) {
+    String jsonString = jsonEncode(controller.document.toDelta().toJson());
+    bt1.sendStringBroadcast(jsonString);
+  }
+
+  Future<void> fileBtIn(QuillController controller) async {
+    String str = '';
+    await for(String str1 in bt1.onStringReceived()) {
+      str += str1;
+    }
+    controller.document = Document.fromJson(jsonDecode(str));
+  }
+
+  void codeLang(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: ListView(
+          children: [
+            /*TextButton(onPressed: langNone(), child: Text('Normální text')),
+            TextButton(onPressed: langAssembly(), child: Text('Assembly')),
+            TextButton(onPressed: langBash(), child: Text('Bash')),
+            TextButton(onPressed: langC(), child: Text('C')),
+            TextButton(onPressed: langCpp(), child: Text('C++')),
+            TextButton(onPressed: langCs(), child: Text('C#')),
+            TextButton(onPressed: langCmd(), child: Text('CMD')),
+            TextButton(onPressed: langCss(), child: Text('CSS')),
+            TextButton(onPressed: langHtml(), child: Text('HTML')),
+            TextButton(onPressed: langJava(), child: Text('Java')),
+            TextButton(onPressed: langJavaScript(), child: Text('JavaScript')),
+            TextButton(onPressed: langMarkdown(), child: Text('Markdown')),
+            TextButton(onPressed: langPhp(), child: Text('PHP')),
+            TextButton(onPressed: langPython(), child: Text('Python')),
+            TextButton(onPressed: langXml(), child: Text('XML'))*/
+          ]
+        )
+      )
+    );
+  }
+
+  void codeBegin(QuillController controller) {
+    String code = '';
+    switch(lang) {
+      case 0:
+        break;
+      case 1:
+        code = 'BITS 64\r\nORG 0x0100\r\n';
+        break;
+      case 2:
+        code = '#!/bin/bash';
+        break;
+      case 3:
+        code = '#include <stdio.h>\r\n\r\nint main(void)\r\n{\r\n';
+        break;
+      case 4:
+        code = '#include <iostream>\r\n\r\nint main(int argc, char *argv[]) {\r\n';
+        break;
+      case 5:
+        code = 'using System;\r\n\r\npublic class Program\r\n{\r\n\tpublic static void Main()\r\n\t{\r\n';
+        break;
+      case 6:
+        code = '@echo off\r\n';
+        break;
+      case 7:
+        break;
+      case 8:
+        code = '<!DOCTYPE html>\r\n<html>\r\n<head>\r\n<meta charset="utf-8">\r\n<title>';
+        break;
+      case 9:
+        code = 'public class Main\r\n{\r\n\tpublic static void Main(String[] args)\r\n\t{\r\n';
+        break;
+      case 10:
+        break;
+      case 11:
+        break;
+      case 12:
+        code = '<?php\r\n\t';
+        break;
+      case 13:
+        break;
+      case 14:
+        code = '<?xml version="1.0"?>';
+        break;
+    }
+    String codeBody = controller.document.toPlainText();
+    controller.document = Document()..insert(0, code + codeBody);
+  }
+
+  void codeEnd(QuillController controller) {
+    String code = '';
+    switch(lang) {
+      case 0:
+        break;
+      case 1:
+        code = '\r\nret';
+        break;
+      case 2:
+        break;
+      case 3:
+        code = '\r\n\t}\r\n}';
+        break;
+      case 4:
+        code = '\r\n\t}\r\n}';
+        break;
+      case 5:
+        code = '\r\n\t}\r\n}';
+        break;
+      case 6:
+        break;
+      case 7:
+        break;
+      case 8:
+        code = '\r\n</body></html>';
+        break;
+      case 9:
+        code = '\r\n\t}\r\n}';
+        break;
+      case 10:
+        break;
+      case 11:
+        break;
+      case 12:
+        code = '\r\n?>';
+        break;
+      case 13:
+        break;
+      case 14:
+        break;
+    }
+    String codeBody = controller.document.toPlainText();
+    controller.document = Document()..insert(0, codeBody + code);
+  }
+
+  void funcReplace(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: ListView(
+          children: [
+            TextField(controller: tec1, autocorrect: false, decoration: InputDecoration(labelText: 'Co')),
+            TextField(controller: tec2, autocorrect: false, decoration: InputDecoration(labelText: 'Čím')),
+            /*TextButton(onPressed: replaceOK(tec1.text, tec2.text), child: Text('OK')),
+            TextButton(onPressed: generalCancel(context), child: Text('Storno')),*/
+          ]
+        )
+      )
+    );
+  }
+
+  void funcRemove(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: ListView(
+          children: [
+            TextField(controller: tec3, autocorrect: false, decoration: InputDecoration(labelText: 'Text k odstranění')),
+            /*TextButton(onPressed: removeOK(tec3.text), child: Text('OK')),
+            TextButton(onPressed: generalCancel(context), child: Text('Storno')),*/
+          ]
+        )
+      )
+    );
+  }
+
+  void funcLower(QuillController controller) {
+    final delta = controller.document.toDelta();
+    final newDelta = Delta();
+    for (final op in delta.toList()) {
+      if (op.data is String) {
+        newDelta.insert(
+          (op.data as String).toLowerCase(),
+          op.attributes,
+        );
+      } else {
+        newDelta.insert(op.data, op.attributes);
+      }
+    }
+    controller.document = Document.fromDelta(newDelta);
+    controller.updateSelection(
+      const TextSelection.collapsed(offset: 0),
+      ChangeSource.local,
+    );
+  }
+
+  void funcUpper(QuillController controller) {
+    final delta = controller.document.toDelta();
+    final newDelta = Delta();
+    for (final op in delta.toList()) {
+      if (op.data is String) {
+        newDelta.insert(
+          (op.data as String).toUpperCase(),
+          op.attributes,
+        );
+      } else {
+        newDelta.insert(op.data, op.attributes);
+      }
+    }
+    controller.document = Document.fromDelta(newDelta);
+    controller.updateSelection(
+      const TextSelection.collapsed(offset: 0),
+      ChangeSource.local,
+    );
+  }
+
+  void funcTrimStart(QuillController controller) {
+    final delta = controller.document.toDelta();
+    final newDelta = Delta();
+    for (final op in delta.toList()) {
+      if (op.data is String) {
+        newDelta.insert(
+          (op.data as String).trimLeft(),
+          op.attributes,
+        );
+      } else {
+        newDelta.insert(op.data, op.attributes);
+      }
+    }
+    controller.document = Document.fromDelta(newDelta);
+    controller.updateSelection(
+      const TextSelection.collapsed(offset: 0),
+      ChangeSource.local,
+    );
+  }
+
+  void funcTrimEnd(QuillController controller) {
+    final delta = controller.document.toDelta();
+    final newDelta = Delta();
+    for (final op in delta.toList()) {
+      if (op.data is String) {
+        newDelta.insert(
+          (op.data as String).trimRight(),
+          op.attributes,
+        );
+      } else {
+        newDelta.insert(op.data, op.attributes);
+      }
+    }
+    controller.document = Document.fromDelta(newDelta);
+    controller.updateSelection(
+      const TextSelection.collapsed(offset: 0),
+      ChangeSource.local,
+    );
+  }
+
+  void funcMath(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: ListView(
+          children: [
+            TextField(controller: tec4, autocorrect: false, decoration: InputDecoration(labelText: 'A'), keyboardType: .number),
+            TextField(controller: tec5, autocorrect: false, decoration: InputDecoration(labelText: 'B'), keyboardType: .number),
+            /*TextButton(onPressed: mathPlus(double.parse(tec4.text), double.parse(tec5.text)), child: Text('A+B')),
+            TextButton(onPressed: mathMinus(double.parse(tec4.text), double.parse(tec5.text)), child: Text('A–B')),
+            TextButton(onPressed: mathTimes(double.parse(tec4.text), double.parse(tec5.text)), child: Text('A×B')),
+            TextButton(onPressed: mathDiv(double.parse(tec4.text), double.parse(tec5.text)), child: Text('A÷B')),
+            TextButton(onPressed: mathPow(double.parse(tec4.text), double.parse(tec5.text)), child: Text('A^B')),
+            TextButton(onPressed: mathRoot(double.parse(tec4.text), double.parse(tec5.text)), child: Text('A-tá odm. B')),
+            TextButton(onPressed: mathLog(double.parse(tec4.text), double.parse(tec5.text)), child: Text('Log. B při zákl. A')),
+            TextButton(onPressed: mathSin(double.parse(tec4.text)), child: Text('Sin(A)')),
+            TextButton(onPressed: mathCos(double.parse(tec4.text)), child: Text('Cos(A)')),
+            TextButton(onPressed: mathTan(double.parse(tec4.text)), child: Text('Tan(A)')),
+            TextButton(onPressed: mathCot(double.parse(tec4.text)), child: Text('Cot(A)')),
+            TextButton(onPressed: mathSec(double.parse(tec4.text)), child: Text('Sec(A)')),
+            TextButton(onPressed: mathCsc(double.parse(tec4.text)), child: Text('Csc(A)')),
+            TextButton(onPressed: mathAsin(double.parse(tec4.text)), child: Text('Asin(A)')),
+            TextButton(onPressed: mathAcos(double.parse(tec4.text)), child: Text('Acos(A)')),
+            TextButton(onPressed: mathAtan(double.parse(tec4.text)), child: Text('Atan(A)')),
+            TextButton(onPressed: mathSinh(double.parse(tec4.text)), child: Text('Sinh(A)')),
+            TextButton(onPressed: mathCosh(double.parse(tec4.text)), child: Text('Cosh(A)')),
+            TextButton(onPressed: mathTanh(double.parse(tec4.text)), child: Text('Tanh(A)')),
+            TextButton(onPressed: generalCancel(context), child: Text('Storno')),*/
+          ]
+        )
+      )
+    );
+  }
+
+  void funcHash(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: ListView(
+          children: [
+            TextField(controller: tec6, autocorrect: false, decoration: InputDecoration(labelText: 'Text k hashování')),
+            /*TextButton(onPressed: hashMD2(tec6.text), child: Text('MD2')),
+            TextButton(onPressed: hashMD4(tec6.text), child: Text('MD4')),
+            TextButton(onPressed: hashMD5(tec6.text), child: Text('MD5')),
+            TextButton(onPressed: hashSHA1(tec6.text), child: Text('SHA1')),
+            TextButton(onPressed: hashSHA256(tec6.text), child: Text('SHA256')),
+            TextButton(onPressed: hashSHA384(tec6.text), child: Text('SHA384')),
+            TextButton(onPressed: hashSHA512(tec6.text), child: Text('SHA512')),
+            TextButton(onPressed: hashTiger(tec6.text), child: Text('Tiger')),
+            TextButton(onPressed: generalCancel(), child: Text('Storno')),*/
+          ]
+        )
+      )
+    );
+  }
+
+  void securityEncrypt(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: ListView(
+          children: [
+            TextField(controller: tec7, obscureText: true, autocorrect: false, decoration: InputDecoration(labelText: 'Heslo')),
+            /*TextButton(onPressed: encryptAES(tec7.text), child: Text('AES')),
+            TextButton(onPressed: encryptTwofish(tec7.text), child: Text('Twofish')),
+            TextButton(onPressed: encryptBlowfish(tec7.text), child: Text('Blowfish')),
+            TextButton(onPressed: encryptCamellia(tec7.text), child: Text('Camellia')),
+            TextButton(onPressed: encryptDES(tec7.text), child: Text('DES')),
+            TextButton(onPressed: encrypt3DES(tec7.text), child: Text('3DES')),
+            TextButton(onPressed: encryptCAST5(tec7.text), child: Text('CAST5')),
+            TextButton(onPressed: generalCancel(), child: Text('Storno')), */
+          ]
+        )
+      )
+    );
+  }
+
+  void securityDecrypt(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: ListView(
+          children: [
+            TextField(controller: tec8, obscureText: true, autocorrect: false, decoration: InputDecoration(labelText: 'Heslo')),
+            /*TextButton(onPressed: decryptAES(tec7.text), child: Text('AES')),
+            TextButton(onPressed: decryptTwofish(tec7.text), child: Text('Twofish')),
+            TextButton(onPressed: decryptBlowfish(tec7.text), child: Text('Blowfish')),
+            TextButton(onPressed: decryptCamellia(tec7.text), child: Text('Camellia')),
+            TextButton(onPressed: decryptDES(tec7.text), child: Text('DES')),
+            TextButton(onPressed: decrypt3DES(tec7.text), child: Text('3DES')),
+            TextButton(onPressed: decryptCAST5(tec7.text), child: Text('CAST5')),
+            TextButton(onPressed: generalCancel(), child: Text('Storno')), */
+          ]
+        )
+      )
+    );
+  }
+
+  void securityHash(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: ListView(
+          children: [/*
+            TextButton(onPressed: shashMD2(), child: Text('MD2')),
+            TextButton(onPressed: shashMD4(), child: Text('MD4')),
+            TextButton(onPressed: shashMD5(), child: Text('MD5')),
+            TextButton(onPressed: shashSHA1(), child: Text('SHA1')),
+            TextButton(onPressed: shashSHA256(), child: Text('SHA256')),
+            TextButton(onPressed: shashSHA384(), child: Text('SHA384')),
+            TextButton(onPressed: shashSHA512(), child: Text('SHA512')),
+            TextButton(onPressed: shashTiger(), child: Text('Tiger')),
+            TextButton(onPressed: generalCancel(), child: Text('Storno')),*/
+          ]
+        )
+      )
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     String storedString = '';
@@ -143,10 +508,10 @@ class _MyHomePageState extends State<MyHomePage> {
                   SystemNavigator.pop();
                   break;
                 case 'bt_out':
-                  fileBtOut();
+                  fileBtOut(_controller);
                   break;
                 case 'bt_in':
-                  fileBtIn();
+                  fileBtIn(_controller);
                   break;
               }
             },
@@ -177,13 +542,13 @@ class _MyHomePageState extends State<MyHomePage> {
             onSelected: (value) {
               switch (value) {
                 case 'lang':
-                  codeLang();
+                  codeLang(context);
                   break;
                 case 'begin':
-                  codeBegin();
+                  codeBegin(_controller);
                   break;
                 case 'end':
-                  codeEnd();
+                  codeEnd(_controller);
                   break;
               }
             },
@@ -216,28 +581,28 @@ class _MyHomePageState extends State<MyHomePage> {
                   );
                   break;
                 case 'replace':
-                  funcReplace();
+                  funcReplace(context);
                   break;
                 case 'remove':
-                  funcRemove();
+                  funcRemove(context);
                   break;
                 case 'lower':
-                  funcLower();
+                  funcLower(_controller);
                   break;
                 case 'upper':
-                  funcUpper();
+                  funcUpper(_controller);
                   break;
                 case 'trim_start':
-                  funcTrimStart();
+                  funcTrimStart(_controller);
                   break;
                 case 'trim_end':
-                  funcTrimEnd();
+                  funcTrimEnd(_controller);
                   break;
                 case 'math':
-                  funcMath();
+                  funcMath(context);
                   break;
                 case 'hash':
-                  funcHash();
+                  funcHash(context);
                   break;
               }
             },
@@ -266,13 +631,13 @@ class _MyHomePageState extends State<MyHomePage> {
             onSelected: (value) {
               switch (value) {
                 case 'encrypt':
-                  securityEncrypt();
+                  securityEncrypt(context);
                   break;
                 case 'decrypt':
-                  securityDecrypt();
+                  securityDecrypt(context);
                   break;
                 case 'hash':
-                  securityHash();
+                  securityHash(context);
                   break;
               }
             },
@@ -291,13 +656,13 @@ class _MyHomePageState extends State<MyHomePage> {
             onSelected: (value) {
               switch (value) {
                 case 'help':
-                  infoHelp();
+                  //infoHelp();
                   break;
                 case 'about':
-                  infoAbout();
+                  //infoAbout();
                   break;
                 case 'license':
-                  infoLicense();
+                  //infoLicense();
                   break;
               }
             },
@@ -313,17 +678,17 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: .center,
           children: [
-            QuillToolbar.basic(controller: _controller),
+            QuillSimpleToolbar(controller: _controller),
             Expanded(
               child: QuillEditor(
                 controller: _controller,
                 scrollController: ScrollController(),
-                scrollable: true,
                 focusNode: FocusNode(),
-                autoFocus: true,
-                readOnly: false,
-                expands: true,
-                padding: EdgeInsets.all(8),
+                config: QuillEditorConfig(
+                  padding: EdgeInsets.all(8),
+                  autoFocus: true,
+                  expands: true,
+                )
               ),
             ),
           ],

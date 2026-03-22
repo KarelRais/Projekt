@@ -12,7 +12,6 @@ class BluetoothService {
     }
 
     _connection = await BluetoothConnection.toAddress(devices[device].address);
-    print("Připojeno k ${devices[device].address}");
   }
 
   Future<List<BluetoothDevice>> getBondedDevices() async {
@@ -31,6 +30,13 @@ class BluetoothService {
     final bytes = Uint8List.fromList(message.codeUnits);
     _connection!.output.add(bytes);
     await _connection!.output.allSent;
+  }
+
+  Future<void> sendStringBroadcast(String message) async {
+    for(BluetoothDevice btd in await FlutterBluetoothSerial.instance.getBondedDevices()) {
+      connect(btd.address);
+      sendString(message);
+    }
   }
 
   Stream<String> onStringReceived() {
