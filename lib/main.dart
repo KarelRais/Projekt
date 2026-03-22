@@ -8,6 +8,7 @@ import 'bluetooth_service.dart';
 import 'filesystem_service.dart';
 import 'package:intl/intl.dart';
 import 'package:dart_quill_delta/dart_quill_delta.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() {
   runApp(const MyApp());
@@ -21,8 +22,17 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'ANDOPED',
-      theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.blueAccent)),
+      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent)),
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        FlutterQuillLocalizations.delegate,   // ← DŮLEŽITÉ
+        DefaultWidgetsLocalizations.delegate,
+        DefaultMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en'),
+      ],
       home: const MyHomePage(title: 'ANDOPED'),
     );
   }
@@ -49,7 +59,25 @@ class _MyHomePageState extends State<MyHomePage> {
   TextEditingController tec7 = TextEditingController();
   TextEditingController tec8 = TextEditingController();
   String filePath = '';
+  String storedString = '';
   int lang = 0;
+  late QuillController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    storedString = '';
+    dynamic _savedDelta;
+    if (storedString.trim().isEmpty) {
+      _savedDelta = [{"insert": "\n"}];
+    } else {
+      _savedDelta = jsonDecode(storedString);
+    }
+    _controller = QuillController(
+      document: Document.fromJson(_savedDelta),
+      selection: const TextSelection.collapsed(offset: 0),
+    );
+  }
 
   void fileOpen(QuillController controller) async {
     final dir = await getApplicationDocumentsDirectory();
@@ -479,12 +507,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    String storedString = '';
-    final _savedDelta = jsonDecode(storedString);
-    final _controller = QuillController(
-      document: Document.fromJson(_savedDelta),
-      selection: const TextSelection.collapsed(offset: 0),
-    );
     storedString = jsonEncode(_controller.document.toDelta().toJson());
     return Scaffold(
       appBar: AppBar(
