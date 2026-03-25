@@ -1,9 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import 'bluetooth_service.dart';
 import 'filesystem_service.dart';
 import 'package:intl/intl.dart';
@@ -17,7 +18,6 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -25,7 +25,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent)),
       debugShowCheckedModeBanner: false,
       localizationsDelegates: const [
-        FlutterQuillLocalizations.delegate,   // ← DŮLEŽITÉ
+        FlutterQuillLocalizations.delegate,
         DefaultWidgetsLocalizations.delegate,
         DefaultMaterialLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
@@ -59,529 +59,504 @@ class _MyHomePageState extends State<MyHomePage> {
   TextEditingController tec7 = TextEditingController();
   TextEditingController tec8 = TextEditingController();
   String filePath = '';
-  String storedString = '';
+  bool _isJsonDocument = false;
+  String _fileName = 'dokument.txt';
   int lang = 0;
   late QuillController _controller;
+  late FocusNode _focusNode;
+  late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
-    storedString = '';
-    dynamic _savedDelta;
-    if (storedString.trim().isEmpty) {
-      _savedDelta = [{"insert": "\n"}];
-    } else {
-      _savedDelta = jsonDecode(storedString);
-    }
+    _focusNode = FocusNode();
+    _scrollController = ScrollController();
     _controller = QuillController(
-      document: Document.fromJson(_savedDelta),
+      document: Document.fromJson([{"insert": "\n"}]),
       selection: const TextSelection.collapsed(offset: 0),
     );
+    // On Android, immediate autofocus runs before QuillRawEditor attaches its
+    // input connection; a short delay matches focus to a mounted editor (opening
+    // any PopupMenuButton used to "fix" this by cycling focus).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      void focusEditor() {
+        if (mounted) _focusNode.requestFocus();
+      }
+
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        Future.delayed(const Duration(milliseconds: 300), focusEditor);
+      } else {
+        focusEditor();
+      }
+    });
   }
 
-  void fileOpen(QuillController controller) async {
-    final dir = await getApplicationDocumentsDirectory();
-    final result = await FilePicker.platform.pickFiles(
-      initialDirectory: dir.path,
-      type: FileType.custom,
-    );
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    _scrollController.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void fileOpen() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.any);
     if (result == null) return;
-    filePath = result.files.single.name;
-    final content = await fs1.openFile(filePath);
-    if (content == null) return;
-    if (filePath.endsWith('.json')) {
-      final delta = jsonDecode(content);
-      controller.document = Document.fromJson(delta);
-    } else {
-      controller.document = Document()..insert(0, content);
-    }
-    controller.updateSelection(
-      const TextSelection.collapsed(offset: 0),
-      ChangeSource.local,
-    );
+    final picked = result.files.single;
+    final path = picked.path;
+    if (path == null) return;
+    final content = await File(path).readAsString();
+    setState(() {
+      filePath = path;
+      _fileName = picked.name;
+      _isJsonDocument = picked.extension?.toLowerCase() == 'json';
+      _controller = QuillController(
+        document: _isJsonDocument
+            ? Document.fromJson(jsonDecode(content))
+            : (Document()..insert(0, content)),
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+    });
   }
 
-  void fileSave(BuildContext context, QuillController controller) async {
-    if (filePath == '') {
-      fileSaveAs(context, controller);
-    }
-    else if (filePath.endsWith('.json')) {
-      await fs1.saveFormatted(filePath, controller);
-    } else {
-      await fs1.savePlain(filePath, controller);
-    }
-  }
+  Future<void> fileSave(BuildContext context) async {
+    try {
+      if (filePath.isEmpty) {
+        await fileSaveAs(context);
+        return;
+      }
 
-  void fileSaveAs(BuildContext context, QuillController controller) async {
-    final nameController = TextEditingController();
-    filePath = (await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Uložit jako...'),
-          content: TextField(
-            controller: nameController,
-            decoration: InputDecoration(
-              hintText: 'pro ukládání formátovaného textu použij příponu .json',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, null),
-              child: Text('Storno'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context, nameController.text.trim());
-              },
-              child: Text('OK'),
-            ),
-          ],
+      // On Android/iOS `filePath` can be SAF-backed (e.g. `content://...`),
+      // which can't be written via `dart:io`. If so, fall back to "Save as..."
+      // which uses platform writing.
+      final lowerPath = filePath.toLowerCase();
+      if (!kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.iOS) &&
+          (lowerPath.startsWith('content://') || lowerPath.startsWith('file://'))) {
+        await fileSaveAs(context);
+        return;
+      }
+      final file = File(filePath);
+      if (_isJsonDocument) {
+        await file.writeAsString(
+          jsonEncode(_controller.document.toDelta().toJson()),
         );
-      },
-    ))!;
-    if (filePath == '') {
-      return;
-    }
-    if (filePath.endsWith('.json')) {
-      await fs1.saveFormatted(filePath, controller);
-    } else {
-      await fs1.savePlain(filePath, controller);
+      } else {
+        await file.writeAsString(_controller.document.toPlainText());
+      }
+    } catch (e, st) {
+      debugPrint('fileSave failed: $e\n$st');
+      if (!context.mounted) return;
+      if (!kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.iOS)) {
+        // `FilePicker.saveFile()` may return a SAF-backed path which isn't
+        // writable via `dart:io`. Fall back to "Save as..." again.
+        await fileSaveAs(context);
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Uložení selhalo: $e'),
+      ));
     }
   }
 
-  void fileBtOut(QuillController controller) {
-    String jsonString = jsonEncode(controller.document.toDelta().toJson());
+  Future<void> fileSaveAs(BuildContext context) async {
+    try {
+      final String content = _isJsonDocument
+          ? jsonEncode(_controller.document.toDelta().toJson())
+          : _controller.document.toPlainText();
+      final Uint8List bytes = Uint8List.fromList(utf8.encode(content));
+
+      final String? savedPath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Uložit jako...',
+        fileName: _fileName,
+        bytes: bytes,
+      );
+      if (savedPath == null) return;
+      filePath = savedPath;
+      _isJsonDocument = _fileName.toLowerCase().endsWith('.json');
+    } catch (e, st) {
+      debugPrint('fileSaveAs failed: $e\n$st');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Uložení selhalo: $e')),
+      );
+    }
+  }
+
+  void fileBtOut() {
+    String jsonString = jsonEncode(_controller.document.toDelta().toJson());
     bt1.sendStringBroadcast(jsonString);
   }
 
-  Future<void> fileBtIn(QuillController controller) async {
+  Future<void> fileBtIn() async {
     String str = '';
-    await for(String str1 in bt1.onStringReceived()) {
+    await for (String str1 in bt1.onStringReceived()) {
       str += str1;
     }
-    controller.document = Document.fromJson(jsonDecode(str));
+    setState(() {
+      _controller = QuillController(
+        document: Document.fromJson(jsonDecode(str)),
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+    });
   }
 
   void codeLang(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: ListView(
-          children: [
-            /*TextButton(onPressed: langNone(), child: Text('Normální text')),
-            TextButton(onPressed: langAssembly(), child: Text('Assembly')),
-            TextButton(onPressed: langBash(), child: Text('Bash')),
-            TextButton(onPressed: langC(), child: Text('C')),
-            TextButton(onPressed: langCpp(), child: Text('C++')),
-            TextButton(onPressed: langCs(), child: Text('C#')),
-            TextButton(onPressed: langCmd(), child: Text('CMD')),
-            TextButton(onPressed: langCss(), child: Text('CSS')),
-            TextButton(onPressed: langHtml(), child: Text('HTML')),
-            TextButton(onPressed: langJava(), child: Text('Java')),
-            TextButton(onPressed: langJavaScript(), child: Text('JavaScript')),
-            TextButton(onPressed: langMarkdown(), child: Text('Markdown')),
-            TextButton(onPressed: langPhp(), child: Text('PHP')),
-            TextButton(onPressed: langPython(), child: Text('Python')),
-            TextButton(onPressed: langXml(), child: Text('XML'))*/
-          ]
-        )
-      )
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Jazyk kódu'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              /*TextButton(onPressed: () { langNone(); Navigator.pop(ctx); }, child: Text('Normální text')),*/
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
+        ],
+      ),
     );
   }
 
-  void codeBegin(QuillController controller) {
+  void codeBegin() {
     String code = '';
-    switch(lang) {
-      case 0:
-        break;
-      case 1:
-        code = 'BITS 64\r\nORG 0x0100\r\n';
-        break;
-      case 2:
-        code = '#!/bin/bash';
-        break;
-      case 3:
-        code = '#include <stdio.h>\r\n\r\nint main(void)\r\n{\r\n';
-        break;
-      case 4:
-        code = '#include <iostream>\r\n\r\nint main(int argc, char *argv[]) {\r\n';
-        break;
-      case 5:
-        code = 'using System;\r\n\r\npublic class Program\r\n{\r\n\tpublic static void Main()\r\n\t{\r\n';
-        break;
-      case 6:
-        code = '@echo off\r\n';
-        break;
-      case 7:
-        break;
-      case 8:
-        code = '<!DOCTYPE html>\r\n<html>\r\n<head>\r\n<meta charset="utf-8">\r\n<title>';
-        break;
-      case 9:
-        code = 'public class Main\r\n{\r\n\tpublic static void Main(String[] args)\r\n\t{\r\n';
-        break;
-      case 10:
-        break;
-      case 11:
-        break;
-      case 12:
-        code = '<?php\r\n\t';
-        break;
-      case 13:
-        break;
-      case 14:
-        code = '<?xml version="1.0"?>';
-        break;
+    switch (lang) {
+      case 0: break;
+      case 1: code = 'BITS 64\r\nORG 0x0100\r\n'; break;
+      case 2: code = '#!/bin/bash'; break;
+      case 3: code = '#include <stdio.h>\r\n\r\nint main(void)\r\n{\r\n'; break;
+      case 4: code = '#include <iostream>\r\n\r\nint main(int argc, char *argv[]) {\r\n'; break;
+      case 5: code = 'using System;\r\n\r\npublic class Program\r\n{\r\n\tpublic static void Main()\r\n\t{\r\n'; break;
+      case 6: code = '@echo off\r\n'; break;
+      case 7: break;
+      case 8: code = '<!DOCTYPE html>\r\n<html>\r\n<head>\r\n<meta charset="utf-8">\r\n<title>'; break;
+      case 9: code = 'public class Main\r\n{\r\n\tpublic static void Main(String[] args)\r\n\t{\r\n'; break;
+      case 10: break;
+      case 11: break;
+      case 12: code = '<?php\r\n\t'; break;
+      case 13: break;
+      case 14: code = '<?xml version="1.0"?>'; break;
     }
-    String codeBody = controller.document.toPlainText();
-    controller.document = Document()..insert(0, code + codeBody);
+    final codeBody = _controller.document.toPlainText();
+    setState(() {
+      _controller = QuillController(
+        document: Document()..insert(0, code + codeBody),
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+    });
   }
 
-  void codeEnd(QuillController controller) {
+  void codeEnd() {
     String code = '';
-    switch(lang) {
-      case 0:
-        break;
-      case 1:
-        code = '\r\nret';
-        break;
-      case 2:
-        break;
-      case 3:
-        code = '\r\n\t}\r\n}';
-        break;
-      case 4:
-        code = '\r\n\t}\r\n}';
-        break;
-      case 5:
-        code = '\r\n\t}\r\n}';
-        break;
-      case 6:
-        break;
-      case 7:
-        break;
-      case 8:
-        code = '\r\n</body></html>';
-        break;
-      case 9:
-        code = '\r\n\t}\r\n}';
-        break;
-      case 10:
-        break;
-      case 11:
-        break;
-      case 12:
-        code = '\r\n?>';
-        break;
-      case 13:
-        break;
-      case 14:
-        break;
+    switch (lang) {
+      case 0: break;
+      case 1: code = '\r\nret'; break;
+      case 2: break;
+      case 3: code = '\r\n\t}\r\n}'; break;
+      case 4: code = '\r\n\t}\r\n}'; break;
+      case 5: code = '\r\n\t}\r\n}'; break;
+      case 6: break;
+      case 7: break;
+      case 8: code = '\r\n</body></html>'; break;
+      case 9: code = '\r\n\t}\r\n}'; break;
+      case 10: break;
+      case 11: break;
+      case 12: code = '\r\n?>'; break;
+      case 13: break;
+      case 14: break;
     }
-    String codeBody = controller.document.toPlainText();
-    controller.document = Document()..insert(0, codeBody + code);
+    final codeBody = _controller.document.toPlainText();
+    setState(() {
+      _controller = QuillController(
+        document: Document()..insert(0, codeBody + code),
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+    });
   }
 
   void funcReplace(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: ListView(
-          children: [
-            TextField(controller: tec1, autocorrect: false, decoration: InputDecoration(labelText: 'Co')),
-            TextField(controller: tec2, autocorrect: false, decoration: InputDecoration(labelText: 'Čím')),
-            /*TextButton(onPressed: replaceOK(tec1.text, tec2.text), child: Text('OK')),
-            TextButton(onPressed: generalCancel(context), child: Text('Storno')),*/
-          ]
-        )
-      )
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Nahradit'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: tec1, autocorrect: false, decoration: const InputDecoration(labelText: 'Co')),
+              TextField(controller: tec2, autocorrect: false, decoration: const InputDecoration(labelText: 'Čím')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
+          /*TextButton(onPressed: () { replaceOK(tec1.text, tec2.text); Navigator.pop(ctx); }, child: const Text('OK')),*/
+        ],
+      ),
     );
   }
 
   void funcRemove(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: ListView(
-          children: [
-            TextField(controller: tec3, autocorrect: false, decoration: InputDecoration(labelText: 'Text k odstranění')),
-            /*TextButton(onPressed: removeOK(tec3.text), child: Text('OK')),
-            TextButton(onPressed: generalCancel(context), child: Text('Storno')),*/
-          ]
-        )
-      )
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Odstranit'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: tec3, autocorrect: false, decoration: const InputDecoration(labelText: 'Text k odstranění')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
+          /*TextButton(onPressed: () { removeOK(tec3.text); Navigator.pop(ctx); }, child: const Text('OK')),*/
+        ],
+      ),
     );
   }
 
-  void funcLower(QuillController controller) {
-    final delta = controller.document.toDelta();
+  void funcLower() {
+    final delta = _controller.document.toDelta();
     final newDelta = Delta();
     for (final op in delta.toList()) {
       if (op.data is String) {
-        newDelta.insert(
-          (op.data as String).toLowerCase(),
-          op.attributes,
-        );
+        newDelta.insert((op.data as String).toLowerCase(), op.attributes);
       } else {
         newDelta.insert(op.data, op.attributes);
       }
     }
-    controller.document = Document.fromDelta(newDelta);
-    controller.updateSelection(
-      const TextSelection.collapsed(offset: 0),
-      ChangeSource.local,
-    );
+    setState(() {
+      _controller = QuillController(
+        document: Document.fromDelta(newDelta),
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+    });
   }
 
-  void funcUpper(QuillController controller) {
-    final delta = controller.document.toDelta();
+  void funcUpper() {
+    final delta = _controller.document.toDelta();
     final newDelta = Delta();
     for (final op in delta.toList()) {
       if (op.data is String) {
-        newDelta.insert(
-          (op.data as String).toUpperCase(),
-          op.attributes,
-        );
+        newDelta.insert((op.data as String).toUpperCase(), op.attributes);
       } else {
         newDelta.insert(op.data, op.attributes);
       }
     }
-    controller.document = Document.fromDelta(newDelta);
-    controller.updateSelection(
-      const TextSelection.collapsed(offset: 0),
-      ChangeSource.local,
-    );
+    setState(() {
+      _controller = QuillController(
+        document: Document.fromDelta(newDelta),
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+    });
   }
 
-  void funcTrimStart(QuillController controller) {
-    final delta = controller.document.toDelta();
+  void funcTrimStart() {
+    final delta = _controller.document.toDelta();
     final newDelta = Delta();
     for (final op in delta.toList()) {
       if (op.data is String) {
-        newDelta.insert(
-          (op.data as String).trimLeft(),
-          op.attributes,
-        );
+        newDelta.insert((op.data as String).trimLeft(), op.attributes);
       } else {
         newDelta.insert(op.data, op.attributes);
       }
     }
-    controller.document = Document.fromDelta(newDelta);
-    controller.updateSelection(
-      const TextSelection.collapsed(offset: 0),
-      ChangeSource.local,
-    );
+    setState(() {
+      _controller = QuillController(
+        document: Document.fromDelta(newDelta),
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+    });
   }
 
-  void funcTrimEnd(QuillController controller) {
-    final delta = controller.document.toDelta();
+  void funcTrimEnd() {
+    final delta = _controller.document.toDelta();
     final newDelta = Delta();
     for (final op in delta.toList()) {
       if (op.data is String) {
-        newDelta.insert(
-          (op.data as String).trimRight(),
-          op.attributes,
-        );
+        newDelta.insert((op.data as String).trimRight(), op.attributes);
       } else {
         newDelta.insert(op.data, op.attributes);
       }
     }
-    controller.document = Document.fromDelta(newDelta);
-    controller.updateSelection(
-      const TextSelection.collapsed(offset: 0),
-      ChangeSource.local,
-    );
+    setState(() {
+      _controller = QuillController(
+        document: Document.fromDelta(newDelta),
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+    });
   }
 
   void funcMath(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: ListView(
-          children: [
-            TextField(controller: tec4, autocorrect: false, decoration: InputDecoration(labelText: 'A'), keyboardType: .number),
-            TextField(controller: tec5, autocorrect: false, decoration: InputDecoration(labelText: 'B'), keyboardType: .number),
-            /*TextButton(onPressed: mathPlus(double.parse(tec4.text), double.parse(tec5.text)), child: Text('A+B')),
-            TextButton(onPressed: mathMinus(double.parse(tec4.text), double.parse(tec5.text)), child: Text('A–B')),
-            TextButton(onPressed: mathTimes(double.parse(tec4.text), double.parse(tec5.text)), child: Text('A×B')),
-            TextButton(onPressed: mathDiv(double.parse(tec4.text), double.parse(tec5.text)), child: Text('A÷B')),
-            TextButton(onPressed: mathPow(double.parse(tec4.text), double.parse(tec5.text)), child: Text('A^B')),
-            TextButton(onPressed: mathRoot(double.parse(tec4.text), double.parse(tec5.text)), child: Text('A-tá odm. B')),
-            TextButton(onPressed: mathLog(double.parse(tec4.text), double.parse(tec5.text)), child: Text('Log. B při zákl. A')),
-            TextButton(onPressed: mathSin(double.parse(tec4.text)), child: Text('Sin(A)')),
-            TextButton(onPressed: mathCos(double.parse(tec4.text)), child: Text('Cos(A)')),
-            TextButton(onPressed: mathTan(double.parse(tec4.text)), child: Text('Tan(A)')),
-            TextButton(onPressed: mathCot(double.parse(tec4.text)), child: Text('Cot(A)')),
-            TextButton(onPressed: mathSec(double.parse(tec4.text)), child: Text('Sec(A)')),
-            TextButton(onPressed: mathCsc(double.parse(tec4.text)), child: Text('Csc(A)')),
-            TextButton(onPressed: mathAsin(double.parse(tec4.text)), child: Text('Asin(A)')),
-            TextButton(onPressed: mathAcos(double.parse(tec4.text)), child: Text('Acos(A)')),
-            TextButton(onPressed: mathAtan(double.parse(tec4.text)), child: Text('Atan(A)')),
-            TextButton(onPressed: mathSinh(double.parse(tec4.text)), child: Text('Sinh(A)')),
-            TextButton(onPressed: mathCosh(double.parse(tec4.text)), child: Text('Cosh(A)')),
-            TextButton(onPressed: mathTanh(double.parse(tec4.text)), child: Text('Tanh(A)')),
-            TextButton(onPressed: generalCancel(context), child: Text('Storno')),*/
-          ]
-        )
-      )
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Matematické'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: tec4, autocorrect: false, decoration: const InputDecoration(labelText: 'A'), keyboardType: TextInputType.number),
+              TextField(controller: tec5, autocorrect: false, decoration: const InputDecoration(labelText: 'B'), keyboardType: TextInputType.number),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
+        ],
+      ),
     );
   }
 
   void funcHash(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: ListView(
-          children: [
-            TextField(controller: tec6, autocorrect: false, decoration: InputDecoration(labelText: 'Text k hashování')),
-            /*TextButton(onPressed: hashMD2(tec6.text), child: Text('MD2')),
-            TextButton(onPressed: hashMD4(tec6.text), child: Text('MD4')),
-            TextButton(onPressed: hashMD5(tec6.text), child: Text('MD5')),
-            TextButton(onPressed: hashSHA1(tec6.text), child: Text('SHA1')),
-            TextButton(onPressed: hashSHA256(tec6.text), child: Text('SHA256')),
-            TextButton(onPressed: hashSHA384(tec6.text), child: Text('SHA384')),
-            TextButton(onPressed: hashSHA512(tec6.text), child: Text('SHA512')),
-            TextButton(onPressed: hashTiger(tec6.text), child: Text('Tiger')),
-            TextButton(onPressed: generalCancel(), child: Text('Storno')),*/
-          ]
-        )
-      )
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hashovací'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: tec6, autocorrect: false, decoration: const InputDecoration(labelText: 'Text k hashování')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
+        ],
+      ),
     );
   }
 
   void securityEncrypt(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: ListView(
-          children: [
-            TextField(controller: tec7, obscureText: true, autocorrect: false, decoration: InputDecoration(labelText: 'Heslo')),
-            /*TextButton(onPressed: encryptAES(tec7.text), child: Text('AES')),
-            TextButton(onPressed: encryptTwofish(tec7.text), child: Text('Twofish')),
-            TextButton(onPressed: encryptBlowfish(tec7.text), child: Text('Blowfish')),
-            TextButton(onPressed: encryptCamellia(tec7.text), child: Text('Camellia')),
-            TextButton(onPressed: encryptDES(tec7.text), child: Text('DES')),
-            TextButton(onPressed: encrypt3DES(tec7.text), child: Text('3DES')),
-            TextButton(onPressed: encryptCAST5(tec7.text), child: Text('CAST5')),
-            TextButton(onPressed: generalCancel(), child: Text('Storno')), */
-          ]
-        )
-      )
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Šifrování'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: tec7, obscureText: true, autocorrect: false, decoration: const InputDecoration(labelText: 'Heslo')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
+        ],
+      ),
     );
   }
 
   void securityDecrypt(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: ListView(
-          children: [
-            TextField(controller: tec8, obscureText: true, autocorrect: false, decoration: InputDecoration(labelText: 'Heslo')),
-            /*TextButton(onPressed: decryptAES(tec7.text), child: Text('AES')),
-            TextButton(onPressed: decryptTwofish(tec7.text), child: Text('Twofish')),
-            TextButton(onPressed: decryptBlowfish(tec7.text), child: Text('Blowfish')),
-            TextButton(onPressed: decryptCamellia(tec7.text), child: Text('Camellia')),
-            TextButton(onPressed: decryptDES(tec7.text), child: Text('DES')),
-            TextButton(onPressed: decrypt3DES(tec7.text), child: Text('3DES')),
-            TextButton(onPressed: decryptCAST5(tec7.text), child: Text('CAST5')),
-            TextButton(onPressed: generalCancel(), child: Text('Storno')), */
-          ]
-        )
-      )
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Dešifrování'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: tec8, obscureText: true, autocorrect: false, decoration: const InputDecoration(labelText: 'Heslo')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
+        ],
+      ),
     );
   }
 
   void securityHash(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: ListView(
-          children: [/*
-            TextButton(onPressed: shashMD2(), child: Text('MD2')),
-            TextButton(onPressed: shashMD4(), child: Text('MD4')),
-            TextButton(onPressed: shashMD5(), child: Text('MD5')),
-            TextButton(onPressed: shashSHA1(), child: Text('SHA1')),
-            TextButton(onPressed: shashSHA256(), child: Text('SHA256')),
-            TextButton(onPressed: shashSHA384(), child: Text('SHA384')),
-            TextButton(onPressed: shashSHA512(), child: Text('SHA512')),
-            TextButton(onPressed: shashTiger(), child: Text('Tiger')),
-            TextButton(onPressed: generalCancel(), child: Text('Storno')),*/
-          ]
-        )
-      )
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hash dokumentu'),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    storedString = jsonEncode(_controller.document.toDelta().toJson());
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
         actions: [
           PopupMenuButton<String>(
-            icon: Icon(Icons.file_open),
-            onSelected: (value) {
+            icon: const Icon(Icons.file_open),
+            onSelected: (value) async {
               switch (value) {
                 case 'open':
-                  fileOpen(_controller);
+                  fileOpen();
                   break;
                 case 'save':
-                  fileSave(context, _controller);
+                  await fileSave(context);
                   break;
                 case 'save_as':
-                  fileSaveAs(context, _controller);
+                  await fileSaveAs(context);
                   break;
                 case 'close':
                   SystemNavigator.pop();
                   break;
                 case 'bt_out':
-                  fileBtOut(_controller);
+                  fileBtOut();
                   break;
                 case 'bt_in':
-                  fileBtIn(_controller);
+                  fileBtIn();
                   break;
               }
             },
-            itemBuilder: (context) => [
+            itemBuilder: (context) => const [
               PopupMenuItem(value: 'open', child: Text('Otevřít')),
               PopupMenuItem(value: 'save', child: Text('Uložit')),
-              PopupMenuItem(
-                value: 'save_format',
-                child: Text('Uložit jako...'),
-              ),
-              PopupMenuItem(
-                value: 'save_no_format',
-                child: Text('Uložit jako prostý text'),
-              ),
+              PopupMenuItem(value: 'save_as', child: Text('Uložit jako...')),
               PopupMenuItem(value: 'close', child: Text('Ukončit aplikaci')),
-              PopupMenuItem(
-                value: 'bt_out',
-                child: Text('Odeslat přes Bluetooth'),
-              ),
-              PopupMenuItem(
-                value: 'bt_in',
-                child: Text('Přijmout přes Bluetooth'),
-              ),
+              PopupMenuItem(value: 'bt_out', child: Text('Odeslat pres Bluetooth')),
+              PopupMenuItem(value: 'bt_in', child: Text('Přijmout pres Bluetooth')),
             ],
           ),
           PopupMenuButton<String>(
-            icon: Icon(Icons.code),
+            icon: const Icon(Icons.code),
             onSelected: (value) {
               switch (value) {
                 case 'lang':
                   codeLang(context);
                   break;
                 case 'begin':
-                  codeBegin(_controller);
+                  codeBegin();
                   break;
                 case 'end':
-                  codeEnd(_controller);
+                  codeEnd();
                   break;
               }
             },
-            itemBuilder: (context) => [
+            itemBuilder: (context) => const [
               PopupMenuItem(value: 'lang', child: Text('Jazyk kódu')),
               PopupMenuItem(value: 'begin', child: Text('Začátek kódu')),
               PopupMenuItem(value: 'end', child: Text('Konec kódu')),
             ],
           ),
           PopupMenuButton<String>(
-            icon: Icon(Icons.functions),
+            icon: const Icon(Icons.functions),
             onSelected: (value) {
               switch (value) {
                 case 'date':
@@ -609,16 +584,16 @@ class _MyHomePageState extends State<MyHomePage> {
                   funcRemove(context);
                   break;
                 case 'lower':
-                  funcLower(_controller);
+                  funcLower();
                   break;
                 case 'upper':
-                  funcUpper(_controller);
+                  funcUpper();
                   break;
                 case 'trim_start':
-                  funcTrimStart(_controller);
+                  funcTrimStart();
                   break;
                 case 'trim_end':
-                  funcTrimEnd(_controller);
+                  funcTrimEnd();
                   break;
                 case 'math':
                   funcMath(context);
@@ -628,7 +603,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   break;
               }
             },
-            itemBuilder: (context) => [
+            itemBuilder: (context) => const [
               PopupMenuItem(value: 'date', child: Text('Datum')),
               PopupMenuItem(value: 'time', child: Text('Čas')),
               PopupMenuItem(value: 'date_time', child: Text('Datum a čas')),
@@ -636,20 +611,14 @@ class _MyHomePageState extends State<MyHomePage> {
               PopupMenuItem(value: 'remove', child: Text('Odstranit')),
               PopupMenuItem(value: 'lower', child: Text('Na malá')),
               PopupMenuItem(value: 'upper', child: Text('Na velká')),
-              PopupMenuItem(
-                value: 'trim_start',
-                child: Text('Odstranit počáteční mezery'),
-              ),
-              PopupMenuItem(
-                value: 'trim_end',
-                child: Text('Odstranit koncové mezery'),
-              ),
+              PopupMenuItem(value: 'trim_start', child: Text('Odstranit počáteční mezery')),
+              PopupMenuItem(value: 'trim_end', child: Text('Odstranit koncové mezery')),
               PopupMenuItem(value: 'math', child: Text('Matematické')),
               PopupMenuItem(value: 'hash', child: Text('Hashovací')),
             ],
           ),
           PopupMenuButton<String>(
-            icon: Icon(Icons.security),
+            icon: const Icon(Icons.security),
             onSelected: (value) {
               switch (value) {
                 case 'encrypt':
@@ -663,32 +632,26 @@ class _MyHomePageState extends State<MyHomePage> {
                   break;
               }
             },
-            itemBuilder: (context) => [
+            itemBuilder: (context) => const [
               PopupMenuItem(value: 'encrypt', child: Text('Šifrování')),
               PopupMenuItem(value: 'decrypt', child: Text('Dešifrování')),
               PopupMenuItem(value: 'hash', child: Text('Hash dokumentu')),
-              PopupMenuItem(
-                value: 'signature',
-                child: Text('Digitální podpis'),
-              ),
+              PopupMenuItem(value: 'signature', child: Text('Digitální podpis')),
             ],
           ),
           PopupMenuButton<String>(
-            icon: Icon(Icons.help),
+            icon: const Icon(Icons.help),
             onSelected: (value) {
               switch (value) {
                 case 'help':
-                  //infoHelp();
                   break;
                 case 'about':
-                  //infoAbout();
                   break;
                 case 'license':
-                  //infoLicense();
                   break;
               }
             },
-            itemBuilder: (context) => [
+            itemBuilder: (context) => const [
               PopupMenuItem(value: 'help', child: Text('Nápověda')),
               PopupMenuItem(value: 'about', child: Text('O aplikaci')),
               PopupMenuItem(value: 'license', child: Text('Licence')),
@@ -696,25 +659,22 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: .center,
-          children: [
-            QuillSimpleToolbar(controller: _controller),
-            Expanded(
-              child: QuillEditor(
-                controller: _controller,
-                scrollController: ScrollController(),
-                focusNode: FocusNode(),
-                config: QuillEditorConfig(
-                  padding: EdgeInsets.all(8),
-                  autoFocus: true,
-                  expands: true,
-                )
+      body: Column(
+        children: [
+          QuillSimpleToolbar(controller: _controller),
+          Expanded(
+            child: QuillEditor(
+              controller: _controller,
+              scrollController: _scrollController,
+              focusNode: _focusNode,
+              config: const QuillEditorConfig(
+                padding: EdgeInsets.all(8),
+                autoFocus: false,
+                expands: true,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
