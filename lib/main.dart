@@ -66,6 +66,51 @@ class _MyHomePageState extends State<MyHomePage> {
   late FocusNode _focusNode;
   late ScrollController _scrollController;
 
+  static const MethodChannel _safChannel = MethodChannel('andoped/saf');
+
+  String _basenameFromPath(String path) {
+    final normalized = path.replaceAll('\\', '/');
+    final idx = normalized.lastIndexOf('/');
+    return idx == -1 ? normalized : normalized.substring(idx + 1);
+  }
+
+  bool _isSafUri(String pathOrUri) {
+    final v = pathOrUri.toLowerCase();
+    return v.startsWith('content://') || v.startsWith('/document/');
+  }
+
+  String _normalizeFilePathForIo(String path) {
+    // `dart:io` File() can't write to SAF `content://` URIs, but it *can* write
+    // to regular file paths. Some pickers return `file://...` URIs; convert
+    // those to a real filesystem path before writing.
+    if (path.toLowerCase().startsWith('file://')) {
+      return Uri.parse(path).toFilePath(windows: Platform.isWindows);
+    }
+    return path;
+  }
+
+  Future<void> _persistSafUriIfPossible(String uri) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    if (!_isSafUri(uri)) return;
+    try {
+      await _safChannel.invokeMethod('persistUri', {'uri': uri});
+    } catch (_) {
+      // Non-fatal: some providers don't support persistable permissions.
+    }
+  }
+
+  Future<String> _readTextFromSafUri(String uri) async {
+    final text = await _safChannel.invokeMethod<String>('readText', {'uri': uri});
+    if (text == null) {
+      throw Exception('Failed to read from $uri');
+    }
+    return text;
+  }
+
+  Future<void> _writeBytesToSafUri(String uri, Uint8List bytes) async {
+    await _safChannel.invokeMethod('writeBytes', {'uri': uri, 'bytes': bytes});
+  }
+
   @override
   void initState() {
     super.initState();
@@ -104,10 +149,28 @@ class _MyHomePageState extends State<MyHomePage> {
     if (result == null) return;
     final picked = result.files.single;
     final path = picked.path;
-    if (path == null) return;
-    final content = await File(path).readAsString();
+    final identifier = picked.identifier;
+    final String content;
+    final String openedPathOrUri;
+
+    // On Android, prefer SAF `content://` identifier if available. `picked.path`
+    // is frequently a temp/cache copy and writing back to it won't update the
+    // original document.
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
+        identifier != null &&
+        _isSafUri(identifier)) {
+      openedPathOrUri = identifier;
+      await _persistSafUriIfPossible(identifier);
+      content = await _readTextFromSafUri(identifier);
+    } else if (path != null) {
+      openedPathOrUri = _normalizeFilePathForIo(path);
+      content = await File(openedPathOrUri).readAsString();
+    } else {
+      return;
+    }
     setState(() {
-      filePath = path;
+      filePath = openedPathOrUri;
       _fileName = picked.name;
       _isJsonDocument = picked.extension?.toLowerCase() == 'json';
       _controller = QuillController(
@@ -126,18 +189,24 @@ class _MyHomePageState extends State<MyHomePage> {
         return;
       }
 
-      // On Android/iOS `filePath` can be SAF-backed (e.g. `content://...`),
-      // which can't be written via `dart:io`. If so, fall back to "Save as..."
-      // which uses platform writing.
       final lowerPath = filePath.toLowerCase();
       if (!kIsWeb &&
           (defaultTargetPlatform == TargetPlatform.android ||
               defaultTargetPlatform == TargetPlatform.iOS) &&
-          (lowerPath.startsWith('content://') || lowerPath.startsWith('file://'))) {
-        await fileSaveAs(context);
+          _isSafUri(lowerPath)) {
+        final String content = _isJsonDocument
+            ? jsonEncode(_controller.document.toDelta().toJson())
+            : _controller.document.toPlainText();
+        final Uint8List bytes = Uint8List.fromList(utf8.encode(content));
+        await _persistSafUriIfPossible(filePath);
+        await _writeBytesToSafUri(filePath, bytes);
         return;
       }
-      final file = File(filePath);
+      final normalizedPath = _normalizeFilePathForIo(filePath);
+      if (normalizedPath != filePath) {
+        filePath = normalizedPath;
+      }
+      final file = File(normalizedPath);
       if (_isJsonDocument) {
         await file.writeAsString(
           jsonEncode(_controller.document.toDelta().toJson()),
@@ -148,12 +217,12 @@ class _MyHomePageState extends State<MyHomePage> {
     } catch (e, st) {
       debugPrint('fileSave failed: $e\n$st');
       if (!context.mounted) return;
-      if (!kIsWeb &&
-          (defaultTargetPlatform == TargetPlatform.android ||
-              defaultTargetPlatform == TargetPlatform.iOS)) {
-        // `FilePicker.saveFile()` may return a SAF-backed path which isn't
-        // writable via `dart:io`. Fall back to "Save as..." again.
-        await fileSaveAs(context);
+      // If a file is already opened/saved, don't force a "Save as..." dialog on
+      // failure; the user expects overwrite. Show an error instead.
+      if (filePath.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Uložení selhalo: $e')),
+        );
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -175,7 +244,15 @@ class _MyHomePageState extends State<MyHomePage> {
         bytes: bytes,
       );
       if (savedPath == null) return;
-      filePath = savedPath;
+      if (!kIsWeb &&
+          defaultTargetPlatform == TargetPlatform.android &&
+          _isSafUri(savedPath)) {
+        filePath = savedPath;
+      } else {
+        filePath = _normalizeFilePathForIo(savedPath);
+      }
+      await _persistSafUriIfPossible(filePath);
+      _fileName = _basenameFromPath(filePath);
       _isJsonDocument = _fileName.toLowerCase().endsWith('.json');
     } catch (e, st) {
       debugPrint('fileSaveAs failed: $e\n$st');
@@ -186,9 +263,17 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  void fileBtOut() {
-    String jsonString = jsonEncode(_controller.document.toDelta().toJson());
-    bt1.sendStringBroadcast(jsonString);
+  Future<void> fileBtOut(BuildContext context) async {
+    try {
+      final jsonString = jsonEncode(_controller.document.toDelta().toJson());
+      await bt1.sendStringBroadcast(jsonString);
+    } catch (e, st) {
+      debugPrint('fileBtOut failed: $e\n$st');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Bluetooth selhalo: $e')),
+      );
+    }
   }
 
   Future<void> fileBtIn() async {
@@ -518,7 +603,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   SystemNavigator.pop();
                   break;
                 case 'bt_out':
-                  fileBtOut();
+                  await fileBtOut(context);
                   break;
                 case 'bt_in':
                   fileBtIn();
@@ -530,8 +615,8 @@ class _MyHomePageState extends State<MyHomePage> {
               PopupMenuItem(value: 'save', child: Text('Uložit')),
               PopupMenuItem(value: 'save_as', child: Text('Uložit jako...')),
               PopupMenuItem(value: 'close', child: Text('Ukončit aplikaci')),
-              PopupMenuItem(value: 'bt_out', child: Text('Odeslat pres Bluetooth')),
-              PopupMenuItem(value: 'bt_in', child: Text('Přijmout pres Bluetooth')),
+              PopupMenuItem(value: 'bt_out', child: Text('Odeslat přes Bluetooth')),
+              PopupMenuItem(value: 'bt_in', child: Text('Přijmout přes Bluetooth')),
             ],
           ),
           PopupMenuButton<String>(

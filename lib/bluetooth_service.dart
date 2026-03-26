@@ -4,6 +4,13 @@ import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 class BluetoothService {
   BluetoothConnection? _connection;
 
+  Future<void> ensureEnabled() async {
+    final isEnabled = await FlutterBluetoothSerial.instance.isEnabled ?? false;
+    if (!isEnabled) {
+      await FlutterBluetoothSerial.instance.requestEnable();
+    }
+  }
+
   Future<void> init(int device) async {
     var devices = await FlutterBluetoothSerial.instance.getBondedDevices();
 
@@ -19,6 +26,12 @@ class BluetoothService {
   }
 
   Future<void> connect(String address) async {
+    if (_connection != null) {
+      try {
+        await _connection!.close();
+      } catch (_) {}
+      _connection = null;
+    }
     _connection = await BluetoothConnection.toAddress(address);
   }
 
@@ -33,9 +46,18 @@ class BluetoothService {
   }
 
   Future<void> sendStringBroadcast(String message) async {
-    for(BluetoothDevice btd in await FlutterBluetoothSerial.instance.getBondedDevices()) {
-      connect(btd.address);
-      sendString(message);
+    await ensureEnabled();
+    final devices = await FlutterBluetoothSerial.instance.getBondedDevices();
+    if (devices.isEmpty) {
+      throw Exception("Nenalezena žádná spárovaná BT zařízení");
+    }
+    for (final btd in devices) {
+      try {
+        await connect(btd.address);
+        await sendString(message);
+      } finally {
+        await disconnect();
+      }
     }
   }
 
