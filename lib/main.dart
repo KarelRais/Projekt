@@ -445,36 +445,25 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void funcTrimStart() {
-    final delta = _controller.document.toDelta();
-    final newDelta = Delta();
-    for (final op in delta.toList()) {
-      if (op.data is String) {
-        newDelta.insert((op.data as String).trimLeft(), op.attributes);
-      } else {
-        newDelta.insert(op.data, op.attributes);
-      }
-    }
+    final content = _controller.document.toPlainText();
+    final trimmed = content.replaceAllMapped(
+      RegExp(r'(^|\n)[ \t]+'),
+      (m) => m.group(1)!,
+    );
     setState(() {
       _controller = QuillController(
-        document: Document.fromDelta(newDelta),
+        document: Document()..insert(0, trimmed),
         selection: const TextSelection.collapsed(offset: 0),
       );
     });
   }
 
   void funcTrimEnd() {
-    final delta = _controller.document.toDelta();
-    final newDelta = Delta();
-    for (final op in delta.toList()) {
-      if (op.data is String) {
-        newDelta.insert((op.data as String).trimRight(), op.attributes);
-      } else {
-        newDelta.insert(op.data, op.attributes);
-      }
-    }
+    final content = _controller.document.toPlainText();
+    final trimmed = content.replaceAll(RegExp(r'[ \t]+(?=\n|$)'), '');
     setState(() {
       _controller = QuillController(
-        document: Document.fromDelta(newDelta),
+        document: Document()..insert(0, trimmed),
         selection: const TextSelection.collapsed(offset: 0),
       );
     });
