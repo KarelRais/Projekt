@@ -7,13 +7,20 @@ import 'package:permission_handler/permission_handler.dart';
 class BluetoothService {
   BluetoothConnection? _connection;
 
-  /// Android 12+ requires [BLUETOOTH_CONNECT] at runtime, not only in the manifest.
+  /// Android 12+ requires [BLUETOOTH_CONNECT] and [BLUETOOTH_SCAN] at runtime
+  /// (declaring them in the manifest is not enough).
   Future<void> _ensureBluetoothPermissionsIfNeeded() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     final connect = await Permission.bluetoothConnect.request();
     if (!connect.isGranted) {
       throw Exception(
         'Povolte v nastavení aplikace oprávnění Bluetooth (připojení k zařízením).',
+      );
+    }
+    final scan = await Permission.bluetoothScan.request();
+    if (!scan.isGranted) {
+      throw Exception(
+        'Povolte v nastavení aplikace oprávnění Bluetooth (vyhledávání zařízení v okolí).',
       );
     }
   }
