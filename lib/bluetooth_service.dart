@@ -1,10 +1,25 @@
 import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class BluetoothService {
   BluetoothConnection? _connection;
 
+  /// Android 12+ requires [BLUETOOTH_CONNECT] at runtime, not only in the manifest.
+  Future<void> _ensureBluetoothPermissionsIfNeeded() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    final connect = await Permission.bluetoothConnect.request();
+    if (!connect.isGranted) {
+      throw Exception(
+        'Povolte v nastavení aplikace oprávnění Bluetooth (připojení k zařízením).',
+      );
+    }
+  }
+
   Future<void> ensureEnabled() async {
+    await _ensureBluetoothPermissionsIfNeeded();
     final isEnabled = await FlutterBluetoothSerial.instance.isEnabled ?? false;
     if (!isEnabled) {
       await FlutterBluetoothSerial.instance.requestEnable();
@@ -12,6 +27,7 @@ class BluetoothService {
   }
 
   Future<void> init(int device) async {
+    await _ensureBluetoothPermissionsIfNeeded();
     var devices = await FlutterBluetoothSerial.instance.getBondedDevices();
 
     if (devices.isEmpty) {
@@ -22,10 +38,12 @@ class BluetoothService {
   }
 
   Future<List<BluetoothDevice>> getBondedDevices() async {
+    await _ensureBluetoothPermissionsIfNeeded();
     return await FlutterBluetoothSerial.instance.getBondedDevices();
   }
 
   Future<void> connect(String address) async {
+    await _ensureBluetoothPermissionsIfNeeded();
     if (_connection != null) {
       try {
         await _connection!.close();

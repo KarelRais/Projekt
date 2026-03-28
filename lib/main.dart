@@ -344,8 +344,11 @@ class _MyHomePageState extends State<MyHomePage> {
     } catch (e, st) {
       debugPrint('fileBtOut failed: $e\n$st');
       if (!context.mounted) return;
+      var msg = e.toString();
+      if (msg.startsWith('Exception: ')) msg = msg.substring('Exception: '.length);
+      if (msg.length > 180) msg = '${msg.substring(0, 180)}…';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Bluetooth selhalo: $e')),
+        SnackBar(content: Text('Bluetooth selhalo: $msg')),
       );
     }
   }

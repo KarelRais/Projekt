@@ -39,6 +39,7 @@ dependencies:
   flutter_quill: ^11.5.0
   file_picker: ^10.3.10
   flutter_bluetooth_serial: ^0.4.0
+  permission_handler: ^11.3.1
   path_provider: ^2.1.5
   intl: ^0.20.2
   quill_delta: ^3.0.0-nullsafety.2
