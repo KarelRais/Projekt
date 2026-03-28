@@ -670,39 +670,62 @@ class _MyHomePageState extends State<MyHomePage> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        scrollable: true,
-        title: const Text('Matematické'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: tec4, autocorrect: false, decoration: const InputDecoration(labelText: 'A'), keyboardType: TextInputType.number),
-            TextField(controller: tec5, autocorrect: false, decoration: const InputDecoration(labelText: 'B'), keyboardType: TextInputType.number),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathPlus(a, b, _controller)), child: const Text('A+B')),
-          TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathMinus(a, b, _controller)), child: const Text('A-B')),
-          TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathMultiply(a, b, _controller)), child: const Text('A×B')),
-          TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathDivide(a, b, _controller)), child: const Text('A÷B')),
-          TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathPower(a, b, _controller)), child: const Text('A^B')),
-          TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathRoot(a, b, _controller)), child: const Text('A√B')),
-          TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathLog(a, b, _controller)), child: const Text('logA(B)')),
-          TextButton(onPressed: () => withA(ctx, (a) => be1.mathSin(a, _controller)), child: const Text('sin(A)')),
-          TextButton(onPressed: () => withA(ctx, (a) => be1.mathCos(a, _controller)), child: const Text('cos(A)')),
-          TextButton(onPressed: () => withA(ctx, (a) => be1.mathTan(a, _controller)), child: const Text('tan(A)')),
-          TextButton(onPressed: () => withA(ctx, (a) => be1.mathCot(a, _controller)), child: const Text('cot(A)')),
-          TextButton(onPressed: () => withA(ctx, (a) => be1.mathSec(a, _controller)), child: const Text('sec(A)')),
-          TextButton(onPressed: () => withA(ctx, (a) => be1.mathCsc(a, _controller)), child: const Text('csc(A)')),
-          TextButton(onPressed: () => withA(ctx, (a) => be1.mathAsin(a, _controller)), child: const Text('asin(A)')),
-          TextButton(onPressed: () => withA(ctx, (a) => be1.mathAcos(a, _controller)), child: const Text('acos(A)')),
-          TextButton(onPressed: () => withA(ctx, (a) => be1.mathAtan(a, _controller)), child: const Text('atan(A)')),
-          TextButton(onPressed: () => withA(ctx, (a) => be1.mathSinh(a, _controller)), child: const Text('sinh(A)')),
-          TextButton(onPressed: () => withA(ctx, (a) => be1.mathCosh(a, _controller)), child: const Text('cosh(A)')),
-          TextButton(onPressed: () => withA(ctx, (a) => be1.mathTanh(a, _controller)), child: const Text('tanh(A)')),
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
-        ],
-      ),
+      builder: (ctx) {
+        final mq = MediaQuery.of(ctx);
+        final viewH = mq.size.height - mq.viewInsets.bottom;
+        // Dialog default insetPadding is 24 vertical on each side; leave headroom so the
+        // scroll viewport never exceeds the overlay (avoids bottom overflow).
+        final scrollViewportH = (viewH - 56).clamp(0.0, double.infinity);
+        return Dialog(
+          clipBehavior: Clip.antiAlias,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: SizedBox(
+            width: double.infinity,
+            height: scrollViewportH > 0 ? scrollViewportH : viewH * 0.5,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('Matematické', style: Theme.of(ctx).textTheme.titleLarge),
+                  const SizedBox(height: 16),
+                  TextField(controller: tec4, autocorrect: false, decoration: const InputDecoration(labelText: 'A'), keyboardType: TextInputType.number),
+                  TextField(controller: tec5, autocorrect: false, decoration: const InputDecoration(labelText: 'B'), keyboardType: TextInputType.number),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathPlus(a, b, _controller)), child: const Text('A+B')),
+                      TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathMinus(a, b, _controller)), child: const Text('A-B')),
+                      TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathMultiply(a, b, _controller)), child: const Text('A×B')),
+                      TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathDivide(a, b, _controller)), child: const Text('A÷B')),
+                      TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathPower(a, b, _controller)), child: const Text('A^B')),
+                      TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathRoot(a, b, _controller)), child: const Text('A√B')),
+                      TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathLog(a, b, _controller)), child: const Text('logA(B)')),
+                      TextButton(onPressed: () => withA(ctx, (a) => be1.mathSin(a, _controller)), child: const Text('sin(A)')),
+                      TextButton(onPressed: () => withA(ctx, (a) => be1.mathCos(a, _controller)), child: const Text('cos(A)')),
+                      TextButton(onPressed: () => withA(ctx, (a) => be1.mathTan(a, _controller)), child: const Text('tan(A)')),
+                      TextButton(onPressed: () => withA(ctx, (a) => be1.mathCot(a, _controller)), child: const Text('cot(A)')),
+                      TextButton(onPressed: () => withA(ctx, (a) => be1.mathSec(a, _controller)), child: const Text('sec(A)')),
+                      TextButton(onPressed: () => withA(ctx, (a) => be1.mathCsc(a, _controller)), child: const Text('csc(A)')),
+                      TextButton(onPressed: () => withA(ctx, (a) => be1.mathAsin(a, _controller)), child: const Text('asin(A)')),
+                      TextButton(onPressed: () => withA(ctx, (a) => be1.mathAcos(a, _controller)), child: const Text('acos(A)')),
+                      TextButton(onPressed: () => withA(ctx, (a) => be1.mathAtan(a, _controller)), child: const Text('atan(A)')),
+                      TextButton(onPressed: () => withA(ctx, (a) => be1.mathSinh(a, _controller)), child: const Text('sinh(A)')),
+                      TextButton(onPressed: () => withA(ctx, (a) => be1.mathCosh(a, _controller)), child: const Text('cosh(A)')),
+                      TextButton(onPressed: () => withA(ctx, (a) => be1.mathTanh(a, _controller)), child: const Text('tanh(A)')),
+                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
