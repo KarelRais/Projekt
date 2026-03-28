@@ -671,15 +671,14 @@ class _MyHomePageState extends State<MyHomePage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         title: const Text('Matematické'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: tec4, autocorrect: false, decoration: const InputDecoration(labelText: 'A'), keyboardType: TextInputType.number),
-              TextField(controller: tec5, autocorrect: false, decoration: const InputDecoration(labelText: 'B'), keyboardType: TextInputType.number),
-            ],
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: tec4, autocorrect: false, decoration: const InputDecoration(labelText: 'A'), keyboardType: TextInputType.number),
+            TextField(controller: tec5, autocorrect: false, decoration: const InputDecoration(labelText: 'B'), keyboardType: TextInputType.number),
+          ],
         ),
         actions: [
           TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathPlus(a, b, _controller)), child: const Text('A+B')),
