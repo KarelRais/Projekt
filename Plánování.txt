@@ -20,3 +20,5 @@ POSTUP:
 5. Funkčnost ovládacích prvků samotné aplikace
 6. Přidání funkcí vkládání a nastavení barev
 7. Přidání ostatních funkcí
+
+(Nakonec jsem vzhledem k předdefinovaným knihovnám použil mírně jiné postupy.)
