@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:convert' show utf8;
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform, kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, debugPrint, defaultTargetPlatform, kIsWeb;
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -65,24 +69,61 @@ class BluetoothService {
       throw Exception("Bluetooth není připojené");
     }
 
-    final bytes = Uint8List.fromList(message.codeUnits);
+    final bytes = Uint8List.fromList(utf8.encode(message));
     _connection!.output.add(bytes);
     await _connection!.output.allSent;
   }
 
+  /// Sends to one paired device. Prefer this over broadcasting: most paired
+  /// devices (headphones, car kits, watches) are not SPP servers — connecting
+  /// to them causes "read failed / socket closed" errors.
+  Future<void> sendStringToAddress(String address, String message) async {
+    await ensureEnabled();
+    StreamSubscription? readSub;
+    try {
+      await connect(address);
+      final input = _connection?.input;
+      if (input != null) {
+        readSub = input.listen(
+          (_) {},
+          onError: (_) {},
+          cancelOnError: false,
+        );
+      }
+      await Future.delayed(const Duration(milliseconds: 280));
+      await sendString(message);
+    } on PlatformException catch (e, st) {
+      debugPrint('Bluetooth sendStringToAddress: $e\n$st');
+      throw Exception(
+        'Nepodařilo se připojit nebo odeslat. Vyberte telefon s touto aplikací, '
+        'který je zapnutý, v dosahu a má Bluetooth zapnuté. (Typické chyby: špatné '
+        'zařízení v seznamu spárovaných, druhá strana neposlouchá sériový profil.)',
+      );
+    } finally {
+      await readSub?.cancel();
+      await disconnect();
+    }
+  }
+
+  /// Tries every paired device; most setups should use [sendStringToAddress] instead.
   Future<void> sendStringBroadcast(String message) async {
     await ensureEnabled();
     final devices = await FlutterBluetoothSerial.instance.getBondedDevices();
     if (devices.isEmpty) {
       throw Exception("Nenalezena žádná spárovaná BT zařízení");
     }
+    Object? lastError;
     for (final btd in devices) {
       try {
-        await connect(btd.address);
-        await sendString(message);
-      } finally {
-        await disconnect();
+        await sendStringToAddress(btd.address, message);
+        return;
+      } catch (e) {
+        lastError = e;
       }
+    }
+    if (lastError != null) {
+      if (lastError is Exception) throw lastError;
+      throw Exception(lastError.toString());
     }
   }
 

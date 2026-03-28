@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart' show BluetoothDevice;
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:dart_quill_delta/dart_quill_delta.dart';
@@ -339,8 +340,45 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> fileBtOut(BuildContext context) async {
     try {
+      await bt1.ensureEnabled();
+      final devices = await bt1.getBondedDevices();
+      if (devices.isEmpty) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Není spárované žádné Bluetooth zařízení.')),
+        );
+        return;
+      }
+      if (!context.mounted) return;
+      final picked = await showDialog<BluetoothDevice>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Odeslat na zařízení'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final d in devices)
+                  ListTile(
+                    title: Text(d.name?.isNotEmpty == true ? d.name! : d.address),
+                    subtitle: d.name?.isNotEmpty == true ? Text(d.address) : null,
+                    onTap: () => Navigator.pop(ctx, d),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
+          ],
+        ),
+      );
+      if (picked == null) return;
       final jsonString = jsonEncode(_controller.document.toDelta().toJson());
-      await bt1.sendStringBroadcast(jsonString);
+      await bt1.sendStringToAddress(picked.address, jsonString);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Odesláno přes Bluetooth.')),
+      );
     } catch (e, st) {
       debugPrint('fileBtOut failed: $e\n$st');
       if (!context.mounted) return;
