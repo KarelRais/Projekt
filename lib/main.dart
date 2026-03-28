@@ -861,7 +861,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void securityEncrypt(BuildContext context) {
+  /*void securityEncrypt(BuildContext context) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -917,7 +917,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
       ),
     );
-  }
+  }*/
 
   @override
   Widget build(BuildContext context) {
@@ -1042,7 +1042,7 @@ class _MyHomePageState extends State<MyHomePage> {
               PopupMenuItem(value: 'hash', child: Text('Hashovací')),
             ],
           ),
-          PopupMenuButton<String>(
+          /*PopupMenuButton<String>(
             icon: const Icon(Icons.security),
             onSelected: (value) {
               switch (value) {
@@ -1063,7 +1063,7 @@ class _MyHomePageState extends State<MyHomePage> {
               PopupMenuItem(value: 'hash', child: Text('Hash dokumentu')),
               PopupMenuItem(value: 'signature', child: Text('Digitální podpis')),
             ],
-          ),
+          ),*/
           PopupMenuButton<String>(
             icon: const Icon(Icons.help),
             onSelected: (value) {

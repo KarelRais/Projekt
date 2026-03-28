@@ -1,15 +1,16 @@
+APLIKACE JE JEŠTĚ PŘED OFICIÁLNÍ PUBLIKACÍ !!! NĚKTERÉ FUNKCE NEMUSÍ BÝT DOSTUPNÉ !!! MOHOU ZDE BÝT BUGY !!!
+
 NÁVOD K POUŽITÍ APLIKACE ANDOPED (= Android Open Editor)
 
 ZÁPIS TEXTU
 • Kliknutím do hlavní plochy aplikace se zobrazí klávesnice.
 • Lze mazat, řádkovat, používat emoji apod.
-• Ve spodním řádku ikon přepínáme styl a barvu písma, velikost, variantu (tučné, kurzíva, podtržené, přeškrtnuté), odrážky, číslování a odsazení.
-• V pravé části spodního řádku jsou ikony pro vložení obrázků, tabulek, odkazů.
+• Bílými ikonami měníme formátování textu, vkládáme odkazy, odrážky, číslování, zaškrtávání, vyhledáváme.
 
 NABÍDKA SOUBOR
 • První ikona v horním řádku.
-• Obsahuje možnost otevřít/uložit soubor nebo ukončit aplikaci.
-• Také je zde možnost odeslat nebo přijmout soubory přes Bluetooth. V takovém případě je třeba mít nainstalovanou aplikaci v obou zařízeních současně.
+• Obsahuje možnost otevřít/uložit soubor nebo ukončit aplikaci. Pro uložení včetně formátování použijeme příponu .json.
+• Také je zde možnost odeslat nebo přijmout soubory přes Bluetooth. V takovém případě je třeba mít nainstalovanou aplikaci v obou zařízeních současně. Nejprve dáme Přijmout, až pak Odeslat.
 
 NABÍDKA KÓD
 • Umožňuje automaticky zvýrazňovat klíčová slova ve vybraných programovacích jazycích.
@@ -20,10 +21,5 @@ NABÍDKA FUNKCE
 • Umožňuje vložit do dokumentu aktuální datum, čas nebo obojí.
 • Také lze použít vybrané matematické a hashovací funkce, nebo jeden řetězec nahradit jiným, odstranit, na malá/velká písmena, ořezat mezery na začátku/konci.
 
-NABÍDKA ZABEZPEČENÍ
-• Šifrování chrání dokument před neoprávněným přístupem. Zadává se heslo, které je třeba zadat také při dešifrování.
-• Na výběr je několik šifrovacích algoritmů.
-• Do dokumentu lze vložit také jeho hash nebo digitální podpis.
-
 NABÍDKA INFORMACE
-• Umožňuje přístup k nápovědě, licenci a informacím o aplikaci.
+• Umožňuje přístup k nápovědě, licenci a informacím o aplikaci. Bude implementována co nejdříve.
