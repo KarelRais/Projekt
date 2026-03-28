@@ -438,7 +438,6 @@ class Backend {
 
   void _writeMathResult(
     QuillController controller,
-    String expression,
     double value,
   ) {
     final resultText = value.isFinite
@@ -446,7 +445,7 @@ class Backend {
             ? value.toInt().toString()
             : value.toString())
         : value.toString();
-    final textToInsert = '$expression = $resultText\n';
+    final textToInsert = '$resultText\n';
     final offset = controller.selection.baseOffset < 0
         ? controller.document.length - 1
         : controller.selection.baseOffset;
@@ -459,60 +458,60 @@ class Backend {
   }
 
   void mathPlus(double a, double b, QuillController controller) =>
-      _writeMathResult(controller, '$a + $b', a + b);
+      _writeMathResult(controller, a + b);
 
   void mathMinus(double a, double b, QuillController controller) =>
-      _writeMathResult(controller, '$a - $b', a - b);
+      _writeMathResult(controller, a - b);
 
   void mathMultiply(double a, double b, QuillController controller) =>
-      _writeMathResult(controller, '$a * $b', a * b);
+      _writeMathResult(controller, a * b);
 
   void mathDivide(double a, double b, QuillController controller) =>
-      _writeMathResult(controller, '$a / $b', a / b);
+      _writeMathResult(controller, a / b);
 
   void mathPower(double a, double b, QuillController controller) =>
-      _writeMathResult(controller, '$a ^ $b', math.pow(a, b).toDouble());
+      _writeMathResult(controller, math.pow(a, b).toDouble());
 
   void mathRoot(double a, double b, QuillController controller) =>
-      _writeMathResult(controller, '$b√$a', math.pow(a, 1 / b).toDouble());
+      _writeMathResult(controller, math.pow(a, 1 / b).toDouble());
 
   void mathLog(double a, double b, QuillController controller) =>
-      _writeMathResult(controller, 'log_$a($b)', math.log(b) / math.log(a));
+      _writeMathResult(controller, math.log(b) / math.log(a));
 
   void mathSin(double a, QuillController controller) =>
-      _writeMathResult(controller, 'sin($a)', math.sin(a));
+      _writeMathResult(controller, math.sin(a));
 
   void mathCos(double a, QuillController controller) =>
-      _writeMathResult(controller, 'cos($a)', math.cos(a));
+      _writeMathResult(controller, math.cos(a));
 
   void mathTan(double a, QuillController controller) =>
-      _writeMathResult(controller, 'tan($a)', math.tan(a));
+      _writeMathResult(controller, math.tan(a));
 
   void mathCot(double a, QuillController controller) =>
-      _writeMathResult(controller, 'cot($a)', 1 / math.tan(a));
+      _writeMathResult(controller, 1 / math.tan(a));
 
   void mathSec(double a, QuillController controller) =>
-      _writeMathResult(controller, 'sec($a)', 1 / math.cos(a));
+      _writeMathResult(controller, 1 / math.cos(a));
 
   void mathCsc(double a, QuillController controller) =>
-      _writeMathResult(controller, 'csc($a)', 1 / math.sin(a));
+      _writeMathResult(controller, 1 / math.sin(a));
 
   void mathAsin(double a, QuillController controller) =>
-      _writeMathResult(controller, 'asin($a)', math.asin(a));
+      _writeMathResult(controller, math.asin(a));
 
   void mathAcos(double a, QuillController controller) =>
-      _writeMathResult(controller, 'acos($a)', math.acos(a));
+      _writeMathResult(controller, math.acos(a));
 
   void mathAtan(double a, QuillController controller) =>
-      _writeMathResult(controller, 'atan($a)', math.atan(a));
+      _writeMathResult(controller, math.atan(a));
 
   void mathSinh(double a, QuillController controller) =>
-      _writeMathResult(controller, 'sinh($a)', (math.exp(a) - math.exp(-a)) / 2);
+      _writeMathResult(controller, (math.exp(a) - math.exp(-a)) / 2);
 
   void mathCosh(double a, QuillController controller) =>
-      _writeMathResult(controller, 'cosh($a)', (math.exp(a) + math.exp(-a)) / 2);
+      _writeMathResult(controller, (math.exp(a) + math.exp(-a)) / 2);
 
   void mathTanh(double a, QuillController controller) =>
       _writeMathResult(
-          controller, 'tanh($a)', (math.exp(a) - math.exp(-a)) / (math.exp(a) + math.exp(-a)));
+          controller, (math.exp(a) - math.exp(-a)) / (math.exp(a) + math.exp(-a)));
 }
