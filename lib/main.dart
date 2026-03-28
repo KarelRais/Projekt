@@ -392,16 +392,29 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> fileBtIn() async {
-    String str = '';
-    await for (String str1 in bt1.onStringReceived()) {
-      str += str1;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Čekám na příchozí Bluetooth spojení…'),
+        duration: Duration(seconds: 30),
+      ),
+    );
+    try {
+      final str = await bt1.receiveString();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      setState(() {
+        _setController(QuillController(
+          document: Document.fromJson(jsonDecode(str)),
+          selection: const TextSelection.collapsed(offset: 0),
+        ));
+      });
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Příjem selhal: $e')),
+      );
     }
-    setState(() {
-      _setController(QuillController(
-        document: Document.fromJson(jsonDecode(str)),
-        selection: const TextSelection.collapsed(offset: 0),
-      ));
-    });
   }
 
   void codeLang(BuildContext context) {

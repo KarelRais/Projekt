@@ -1,15 +1,14 @@
 import 'dart:async';
 import 'dart:convert' show utf8;
 import 'dart:typed_data';
-
-import 'package:flutter/foundation.dart'
-    show TargetPlatform, debugPrint, defaultTargetPlatform, kIsWeb;
-import 'package:flutter/services.dart' show PlatformException;
+import 'package:flutter/foundation.dart' show TargetPlatform, debugPrint, defaultTargetPlatform, kIsWeb;
+import 'package:flutter/services.dart' show MethodChannel, PlatformException;
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class BluetoothService {
   BluetoothConnection? _connection;
+  static const _btChannel = MethodChannel('andoped/bluetooth');
 
   /// Android 12+ requires [BLUETOOTH_CONNECT] and [BLUETOOTH_SCAN] at runtime
   /// (declaring them in the manifest is not enough).
@@ -78,9 +77,9 @@ class BluetoothService {
   /// devices (headphones, car kits, watches) are not SPP servers — connecting
   /// to them causes "read failed / socket closed" errors.
   Future<void> sendStringToAddress(String address, String message) async {
-    await ensureEnabled();
     StreamSubscription? readSub;
     try {
+      await ensureEnabled();          // <-- přesunuto dovnitř try
       await connect(address);
       final input = _connection?.input;
       if (input != null) {
@@ -90,7 +89,7 @@ class BluetoothService {
           cancelOnError: false,
         );
       }
-      await Future.delayed(const Duration(milliseconds: 280));
+      await Future.delayed(const Duration(milliseconds: 600));   // <-- zvýšeno z 280
       await sendString(message);
     } on PlatformException catch (e, st) {
       debugPrint('Bluetooth sendStringToAddress: $e\n$st');
@@ -101,9 +100,11 @@ class BluetoothService {
       );
     } finally {
       await readSub?.cancel();
-      await disconnect();
+      try {                           // <-- disconnect obaleno try-catch
+        await disconnect();
+      } catch (_) {}
     }
-  }
+}
 
   /// Tries every paired device; most setups should use [sendStringToAddress] instead.
   Future<void> sendStringBroadcast(String message) async {
@@ -140,5 +141,11 @@ class BluetoothService {
   Future<void> disconnect() async {
     await _connection?.close();
     _connection = null;
+  }
+
+  Future<String> receiveString() async {
+    await _ensureBluetoothPermissionsIfNeeded();
+    final String result = await _btChannel.invokeMethod('receive');
+    return result;
   }
 }
