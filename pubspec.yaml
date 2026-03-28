@@ -43,6 +43,8 @@ dependencies:
   intl: ^0.20.2
   quill_delta: ^3.0.0-nullsafety.2
   dart_quill_delta: ^10.8.3
+  hashlib: ^2.3.0
+  pointycastle: ^3.9.1
 
 dev_dependencies:
   flutter_test:

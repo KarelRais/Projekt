@@ -1,7 +1,14 @@
-import 'package:dart_quill_delta/dart_quill_delta.dart';
+import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
+
+import 'package:dart_quill_delta/dart_quill_delta.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:hashlib/hashlib.dart' as hl;
+import 'package:pointycastle/api.dart' show Digest;
+import 'package:pointycastle/digests/tiger.dart';
+import 'package:pointycastle/digests/whirlpool.dart';
 
 class Backend {
   static const _colors = {
@@ -514,4 +521,63 @@ class Backend {
   void mathTanh(double a, QuillController controller) =>
       _writeMathResult(
           controller, (math.exp(a) - math.exp(-a)) / (math.exp(a) + math.exp(-a)));
+
+  void _insertHashHex(QuillController controller, String hexUpper) {
+    final textToInsert = '$hexUpper\n';
+    final offset = controller.selection.baseOffset < 0
+        ? controller.document.length - 1
+        : controller.selection.baseOffset;
+    controller.replaceText(
+      offset,
+      0,
+      textToInsert,
+      TextSelection.collapsed(offset: offset + textToInsert.length),
+    );
+  }
+
+  String _hashlibHexUtf8Upper(hl.HashBase h, String input) =>
+      h.string(input, utf8).hex(true);
+
+  String _pointycastleHexUtf8Upper(Digest digest, String input) {
+    final data = Uint8List.fromList(utf8.encode(input));
+    digest.reset();
+    digest.update(data, 0, data.length);
+    final out = Uint8List(digest.digestSize);
+    digest.doFinal(out, 0);
+    final sb = StringBuffer();
+    for (var i = 0; i < out.length; i++) {
+      sb.write(out[i].toRadixString(16).padLeft(2, '0'));
+    }
+    return sb.toString().toUpperCase();
+  }
+
+  void hash_md2(String input, QuillController controller) =>
+      _insertHashHex(controller, _hashlibHexUtf8Upper(hl.md2, input));
+
+  void hash_md4(String input, QuillController controller) =>
+      _insertHashHex(controller, _hashlibHexUtf8Upper(hl.md4, input));
+
+  void hash_md5(String input, QuillController controller) =>
+      _insertHashHex(controller, _hashlibHexUtf8Upper(hl.md5, input));
+
+  void hash_sha1(String input, QuillController controller) =>
+      _insertHashHex(controller, _hashlibHexUtf8Upper(hl.sha1, input));
+
+  void hash_sha256(String input, QuillController controller) =>
+      _insertHashHex(controller, _hashlibHexUtf8Upper(hl.sha256, input));
+
+  void hash_sha384(String input, QuillController controller) =>
+      _insertHashHex(controller, _hashlibHexUtf8Upper(hl.sha384, input));
+
+  void hash_sha512(String input, QuillController controller) =>
+      _insertHashHex(controller, _hashlibHexUtf8Upper(hl.sha512, input));
+
+  void hash_ripemd160(String input, QuillController controller) =>
+      _insertHashHex(controller, _hashlibHexUtf8Upper(hl.ripemd160, input));
+
+  void hash_whirlpool(String input, QuillController controller) =>
+      _insertHashHex(controller, _pointycastleHexUtf8Upper(WhirlpoolDigest(), input));
+
+  void hash_tiger(String input, QuillController controller) =>
+      _insertHashHex(controller, _pointycastleHexUtf8Upper(TigerDigest(), input));
 }
