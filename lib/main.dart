@@ -1,15 +1,17 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:file_picker/file_picker.dart';
-import 'bluetooth_service.dart';
-import 'filesystem_service.dart';
 import 'package:intl/intl.dart';
 import 'package:dart_quill_delta/dart_quill_delta.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'bluetooth_service.dart';
+import 'filesystem_service.dart';
+import 'backend.dart';
 
 void main() {
   runApp(const MyApp());
@@ -50,6 +52,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   BluetoothService bt1 = BluetoothService();
   FileSystemService fs1 = FileSystemService();
+  Backend be1 = Backend();
   TextEditingController tec1 = TextEditingController();
   TextEditingController tec2 = TextEditingController();
   TextEditingController tec3 = TextEditingController();
@@ -65,8 +68,76 @@ class _MyHomePageState extends State<MyHomePage> {
   late QuillController _controller;
   late FocusNode _focusNode;
   late ScrollController _scrollController;
+  StreamSubscription<DocChange>? _docChangeSub;
+  Timer? _highlightDebounce;
+  bool _isApplyingHighlight = false;
 
   static const MethodChannel _safChannel = MethodChannel('andoped/saf');
+
+  void _applySyntaxHighlight({bool keepSelection = true}) {
+    try {
+      if (_isApplyingHighlight) return;
+      _isApplyingHighlight = true;
+      final text = _controller.document.toPlainText();
+      final docLen = _controller.document.length;
+      final maxFormatLen = (docLen - 1).clamp(0, docLen); // exclude terminal '\n'
+
+      // Clear previous color highlighting (but keep other formatting).
+      if (maxFormatLen > 0) {
+        _controller.formatText(
+          0,
+          maxFormatLen,
+          Attribute.clone(Attribute.color, null),
+        );
+      }
+
+      if (lang != 0 && maxFormatLen > 0) {
+        for (final t in be1.tokenize(text, lang)) {
+          final color = t.color;
+          if (color == null) continue;
+          final start = t.start.clamp(0, maxFormatLen);
+          final end = t.end.clamp(0, maxFormatLen);
+          final length = end - start;
+          if (length <= 0) continue;
+          _controller.formatText(
+            start,
+            length,
+            Attribute.clone(Attribute.color, color),
+          );
+        }
+      }
+    } catch (e, st) {
+      debugPrint('applySyntaxHighlight failed: $e\n$st');
+    } finally {
+      _isApplyingHighlight = false;
+    }
+  }
+
+  void _attachRealtimeHighlighting() {
+    _docChangeSub?.cancel();
+    _docChangeSub = _controller.changes.listen((_) {
+      if (lang == 0) return;
+      if (_isApplyingHighlight) return;
+      _highlightDebounce?.cancel();
+      _highlightDebounce = Timer(const Duration(milliseconds: 180), () {
+        _applySyntaxHighlight();
+      });
+    });
+  }
+
+  void _setController(QuillController controller) {
+    _controller.dispose();
+    _controller = controller;
+    _attachRealtimeHighlighting();
+  }
+
+  void _selectLanguageAndHighlight(BuildContext dialogContext, int newLang) {
+    Navigator.pop(dialogContext);
+    setState(() {
+      lang = newLang;
+    });
+    Future.microtask(_applySyntaxHighlight);
+  }
 
   String _basenameFromPath(String path) {
     final normalized = path.replaceAll('\\', '/');
@@ -120,6 +191,7 @@ class _MyHomePageState extends State<MyHomePage> {
       document: Document.fromJson([{"insert": "\n"}]),
       selection: const TextSelection.collapsed(offset: 0),
     );
+    _attachRealtimeHighlighting();
     // On Android, immediate autofocus runs before QuillRawEditor attaches its
     // input connection; a short delay matches focus to a mounted editor (opening
     // any PopupMenuButton used to "fix" this by cycling focus).
@@ -138,6 +210,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void dispose() {
+    _highlightDebounce?.cancel();
+    _docChangeSub?.cancel();
     _focusNode.dispose();
     _scrollController.dispose();
     _controller.dispose();
@@ -173,12 +247,12 @@ class _MyHomePageState extends State<MyHomePage> {
       filePath = openedPathOrUri;
       _fileName = picked.name;
       _isJsonDocument = picked.extension?.toLowerCase() == 'json';
-      _controller = QuillController(
+      _setController(QuillController(
         document: _isJsonDocument
             ? Document.fromJson(jsonDecode(content))
             : (Document()..insert(0, content)),
         selection: const TextSelection.collapsed(offset: 0),
-      );
+      ));
     });
   }
 
@@ -282,10 +356,10 @@ class _MyHomePageState extends State<MyHomePage> {
       str += str1;
     }
     setState(() {
-      _controller = QuillController(
+      _setController(QuillController(
         document: Document.fromJson(jsonDecode(str)),
         selection: const TextSelection.collapsed(offset: 0),
-      );
+      ));
     });
   }
 
@@ -297,8 +371,97 @@ class _MyHomePageState extends State<MyHomePage> {
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              /*TextButton(onPressed: () { langNone(); Navigator.pop(ctx); }, child: Text('Normální text')),*/
+            children: [
+              TextButton(
+                onPressed: () {
+                  _selectLanguageAndHighlight(ctx, 0);
+                },
+                child: const Text('Normální text'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _selectLanguageAndHighlight(ctx, 1);
+                },
+                child: const Text('Assembly'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _selectLanguageAndHighlight(ctx, 2);
+                },
+                child: const Text('Bash'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _selectLanguageAndHighlight(ctx, 3);
+                },
+                child: const Text('C'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _selectLanguageAndHighlight(ctx, 4);
+                },
+                child: const Text('C++'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _selectLanguageAndHighlight(ctx, 5);
+                },
+                child: const Text('C#'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _selectLanguageAndHighlight(ctx, 6);
+                },
+                child: const Text('CMD'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _selectLanguageAndHighlight(ctx, 7);
+                },
+                child: const Text('CSS'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _selectLanguageAndHighlight(ctx, 8);
+                },
+                child: const Text('HTML'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _selectLanguageAndHighlight(ctx, 9);
+                },
+                child: const Text('Java'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _selectLanguageAndHighlight(ctx, 10);
+                },
+                child: const Text('JavaScript'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _selectLanguageAndHighlight(ctx, 11);
+                },
+                child: const Text('Markdown'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _selectLanguageAndHighlight(ctx, 12);
+                },
+                child: const Text('PHP'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _selectLanguageAndHighlight(ctx, 13);
+                },
+                child: const Text('Python'),
+              ),
+              TextButton(
+                onPressed: () {
+                  _selectLanguageAndHighlight(ctx, 14);
+                },
+                child: const Text('XML'),
+              ),
             ],
           ),
         ),
@@ -330,11 +493,12 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     final codeBody = _controller.document.toPlainText();
     setState(() {
-      _controller = QuillController(
+      _setController(QuillController(
         document: Document()..insert(0, code + codeBody),
         selection: const TextSelection.collapsed(offset: 0),
-      );
+      ));
     });
+    if (lang != 0) _applySyntaxHighlight(keepSelection: false);
   }
 
   void codeEnd() {
@@ -358,11 +522,12 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     final codeBody = _controller.document.toPlainText();
     setState(() {
-      _controller = QuillController(
+      _setController(QuillController(
         document: Document()..insert(0, codeBody + code),
         selection: const TextSelection.collapsed(offset: 0),
-      );
+      ));
     });
+    if (lang != 0) _applySyntaxHighlight(keepSelection: false);
   }
 
   void funcReplace(BuildContext context) {
@@ -380,8 +545,8 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ),
         actions: [
+          TextButton(onPressed: () { be1.replace(tec1.text, tec2.text, _controller); }, child: const Text('OK')),
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
-          /*TextButton(onPressed: () { replaceOK(tec1.text, tec2.text); Navigator.pop(ctx); }, child: const Text('OK')),*/
         ],
       ),
     );
@@ -401,8 +566,8 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ),
         actions: [
+          TextButton(onPressed: () { be1.replace(tec3.text, '', _controller); }, child: const Text('OK')),
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
-          /*TextButton(onPressed: () { removeOK(tec3.text); Navigator.pop(ctx); }, child: const Text('OK')),*/
         ],
       ),
     );
@@ -419,10 +584,10 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
     setState(() {
-      _controller = QuillController(
+      _setController(QuillController(
         document: Document.fromDelta(newDelta),
         selection: const TextSelection.collapsed(offset: 0),
-      );
+      ));
     });
   }
 
@@ -437,10 +602,10 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
     setState(() {
-      _controller = QuillController(
+      _setController(QuillController(
         document: Document.fromDelta(newDelta),
         selection: const TextSelection.collapsed(offset: 0),
-      );
+      ));
     });
   }
 
@@ -451,10 +616,10 @@ class _MyHomePageState extends State<MyHomePage> {
       (m) => m.group(1)!,
     );
     setState(() {
-      _controller = QuillController(
+      _setController(QuillController(
         document: Document()..insert(0, trimmed),
         selection: const TextSelection.collapsed(offset: 0),
-      );
+      ));
     });
   }
 
@@ -462,14 +627,47 @@ class _MyHomePageState extends State<MyHomePage> {
     final content = _controller.document.toPlainText();
     final trimmed = content.replaceAll(RegExp(r'[ \t]+(?=\n|$)'), '');
     setState(() {
-      _controller = QuillController(
+      _setController(QuillController(
         document: Document()..insert(0, trimmed),
         selection: const TextSelection.collapsed(offset: 0),
-      );
+      ));
     });
   }
 
   void funcMath(BuildContext context) {
+    double? parseInput(String value) => double.tryParse(value.replaceAll(',', '.'));
+
+    void withA(
+      BuildContext ctx,
+      void Function(double a) action,
+    ) {
+      final a = parseInput(tec4.text);
+      if (a == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Neplatná hodnota A')),
+        );
+        return;
+      }
+      action(a);
+      Navigator.pop(ctx);
+    }
+
+    void withAB(
+      BuildContext ctx,
+      void Function(double a, double b) action,
+    ) {
+      final a = parseInput(tec4.text);
+      final b = parseInput(tec5.text);
+      if (a == null || b == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Neplatná hodnota A nebo B')),
+        );
+        return;
+      }
+      action(a, b);
+      Navigator.pop(ctx);
+    }
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -484,6 +682,25 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ),
         actions: [
+          TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathPlus(a, b, _controller)), child: const Text('A+B')),
+          TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathMinus(a, b, _controller)), child: const Text('A-B')),
+          TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathMultiply(a, b, _controller)), child: const Text('A×B')),
+          TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathDivide(a, b, _controller)), child: const Text('A÷B')),
+          TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathPower(a, b, _controller)), child: const Text('A^B')),
+          TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathRoot(a, b, _controller)), child: const Text('A√B')),
+          TextButton(onPressed: () => withAB(ctx, (a, b) => be1.mathLog(a, b, _controller)), child: const Text('logA(B)')),
+          TextButton(onPressed: () => withA(ctx, (a) => be1.mathSin(a, _controller)), child: const Text('sin(A)')),
+          TextButton(onPressed: () => withA(ctx, (a) => be1.mathCos(a, _controller)), child: const Text('cos(A)')),
+          TextButton(onPressed: () => withA(ctx, (a) => be1.mathTan(a, _controller)), child: const Text('tan(A)')),
+          TextButton(onPressed: () => withA(ctx, (a) => be1.mathCot(a, _controller)), child: const Text('cot(A)')),
+          TextButton(onPressed: () => withA(ctx, (a) => be1.mathSec(a, _controller)), child: const Text('sec(A)')),
+          TextButton(onPressed: () => withA(ctx, (a) => be1.mathCsc(a, _controller)), child: const Text('csc(A)')),
+          TextButton(onPressed: () => withA(ctx, (a) => be1.mathAsin(a, _controller)), child: const Text('asin(A)')),
+          TextButton(onPressed: () => withA(ctx, (a) => be1.mathAcos(a, _controller)), child: const Text('acos(A)')),
+          TextButton(onPressed: () => withA(ctx, (a) => be1.mathAtan(a, _controller)), child: const Text('atan(A)')),
+          TextButton(onPressed: () => withA(ctx, (a) => be1.mathSinh(a, _controller)), child: const Text('sinh(A)')),
+          TextButton(onPressed: () => withA(ctx, (a) => be1.mathCosh(a, _controller)), child: const Text('cosh(A)')),
+          TextButton(onPressed: () => withA(ctx, (a) => be1.mathTanh(a, _controller)), child: const Text('tanh(A)')),
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
         ],
       ),
