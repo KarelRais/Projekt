@@ -751,30 +751,59 @@ class _MyHomePageState extends State<MyHomePage> {
   void funcHash(BuildContext context) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Hashovací'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: tec6, autocorrect: false, decoration: const InputDecoration(labelText: 'Text k hashování')),
-            ],
+      builder: (ctx) {
+        final mq = MediaQuery.of(ctx);
+        final viewH = mq.size.height - mq.viewInsets.bottom;
+        final scrollViewportH = (viewH - 56).clamp(0.0, double.infinity);
+        return Dialog(
+          clipBehavior: Clip.antiAlias,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Material(
+            type: MaterialType.canvas,
+            color: Theme.of(ctx).colorScheme.surfaceContainerHigh,
+            clipBehavior: Clip.antiAlias,
+            child: SizedBox(
+              width: double.infinity,
+              height: scrollViewportH > 0 ? scrollViewportH : viewH * 0.5,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text('Hashovací', style: Theme.of(ctx).textTheme.titleLarge),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: tec6,
+                      autocorrect: false,
+                      decoration: const InputDecoration(labelText: 'Text k hashování'),
+                    ),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        TextButton(onPressed: () => be1.hash_md2(tec6.text, _controller), child: const Text('MD2')),
+                        TextButton(onPressed: () => be1.hash_md4(tec6.text, _controller), child: const Text('MD4')),
+                        TextButton(onPressed: () => be1.hash_md5(tec6.text, _controller), child: const Text('MD5')),
+                        TextButton(onPressed: () => be1.hash_sha1(tec6.text, _controller), child: const Text('SHA1')),
+                        TextButton(onPressed: () => be1.hash_sha256(tec6.text, _controller), child: const Text('SHA256')),
+                        TextButton(onPressed: () => be1.hash_sha384(tec6.text, _controller), child: const Text('SHA384')),
+                        TextButton(onPressed: () => be1.hash_sha512(tec6.text, _controller), child: const Text('SHA512')),
+                        TextButton(onPressed: () => be1.hash_ripemd160(tec6.text, _controller), child: const Text('RIPEMD160')),
+                        TextButton(onPressed: () => be1.hash_whirlpool(tec6.text, _controller), child: const Text('Whirlpool')),
+                        TextButton(onPressed: () => be1.hash_tiger(tec6.text, _controller), child: const Text('Tiger')),
+                        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => be1.hash_md2(tec6.text, _controller), child: const Text('MD2')),
-          TextButton(onPressed: () => be1.hash_md4(tec6.text, _controller), child: const Text('MD4')),
-          TextButton(onPressed: () => be1.hash_md5(tec6.text, _controller), child: const Text('MD5')),
-          TextButton(onPressed: () => be1.hash_sha1(tec6.text, _controller), child: const Text('SHA1')),
-          TextButton(onPressed: () => be1.hash_sha256(tec6.text, _controller), child: const Text('SHA256')),
-          TextButton(onPressed: () => be1.hash_sha384(tec6.text, _controller), child: const Text('SHA384')),
-          TextButton(onPressed: () => be1.hash_sha512(tec6.text, _controller), child: const Text('SHA512')),
-          TextButton(onPressed: () => be1.hash_ripemd160(tec6.text, _controller), child: const Text('RIPEMD160')),
-          TextButton(onPressed: () => be1.hash_whirlpool(tec6.text, _controller), child: const Text('Whirlpool')),
-          TextButton(onPressed: () => be1.hash_tiger(tec6.text, _controller), child: const Text('Tiger')),
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
-        ],
-      ),
+        );
+      },
     );
   }
 
