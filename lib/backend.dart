@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:dart_quill_delta/dart_quill_delta.dart';
 import 'package:flutter/services.dart';
