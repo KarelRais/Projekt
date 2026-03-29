@@ -1,5 +1,3 @@
-APLIKACE JE JEŠTĚ PŘED OFICIÁLNÍ PUBLIKACÍ !!! NĚKTERÉ FUNKCE NEMUSÍ BÝT DOSTUPNÉ !!! MOHOU ZDE BÝT BUGY !!!
-
 NÁVOD K POUŽITÍ APLIKACE ANDOPED (= Android Open Editor)
 
 ZÁPIS TEXTU
@@ -22,4 +20,4 @@ NABÍDKA FUNKCE
 • Také lze použít vybrané matematické a hashovací funkce, nebo jeden řetězec nahradit jiným, odstranit, na malá/velká písmena, ořezat mezery na začátku/konci.
 
 NABÍDKA INFORMACE
-• Umožňuje přístup k nápovědě, licenci a informacím o aplikaci. Bude implementována co nejdříve.
+• Umožňuje přístup k nápovědě, licenci a informacím o aplikaci.

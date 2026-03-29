@@ -21,4 +21,4 @@ POSTUP:
 6. Přidání funkcí vkládání a nastavení barev
 7. Přidání ostatních funkcí
 
-(Nakonec jsem vzhledem k předdefinovaným knihovnám použil mírně jiné postupy.)
+(Nakonec jsem vzhledem k předdefinovaným knihovnám použil mírně jiné postupy. A méně důležité funkce jsem prozatím vypustil, protože teď jde o odevzdání.)

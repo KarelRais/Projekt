@@ -861,63 +861,45 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  /*void securityEncrypt(BuildContext context) {
+  void infoHelp(BuildContext context) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Šifrování'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: tec7, obscureText: true, autocorrect: false, decoration: const InputDecoration(labelText: 'Heslo')),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
-        ],
+        title: const Text('Nápověda'),
+        content: SizedBox(
+           height: 400,
+           child: SingleChildScrollView(
+           child: const Text('NÁVOD K POUŽITÍ APLIKACE ANDOPED (= Android Open Editor)\r\n\r\nZÁPIS TEXTU\r\n• Kliknutím do hlavní plochy aplikace se zobrazí klávesnice.\r\n• Lze mazat, řádkovat, používat emoji apod.\r\n• Bílými ikonami měníme formátování textu, vkládáme odkazy, odrážky, číslování, zaškrtávání, vyhledáváme.\r\n\r\nNABÍDKA SOUBOR\r\n• První ikona v horním řádku.\r\n• Obsahuje možnost otevřít/uložit soubor nebo ukončit aplikaci. Pro uložení včetně formátování použijeme příponu .json.\r\r• Také je zde možnost odeslat nebo přijmout soubory přes Bluetooth. V takovém případě je třeba mít nainstalovanou aplikaci v obou zařízeních současně. Nejprve dáme Přijmout, až pak Odeslat.\r\n\r\nNABÍDKA KÓD\r\n• Umožňuje automaticky zvýrazňovat klíčová slova ve vybraných programovacích jazycích.\r\n• Při použití editoru k psaní zdrojového kódu je vhodné volbou "Jazyk kódu" zvolit některý z dostupných jazyků (pokud je v seznamu).\r\n• Lze také automaticky vložit začátek a konec zdrojového kódu.\r\n\r\nNABÍDKA FUNKCE\r\n• Umožňuje vložit do dokumentu aktuální datum, čas nebo obojí.\r\n• Také lze použít vybrané matematické a hashovací funkce, nebo jeden řetězec nahradit jiným, odstranit, na malá/velká písmena, ořezat mezery na začátku/konci.\r\n\r\nNABÍDKA INFORMACE\r\n• Umožňuje přístup k nápovědě, licenci a informacím o aplikaci.'),
+           )
+        )
       ),
     );
   }
 
-  void securityDecrypt(BuildContext context) {
+  void infoAbout(BuildContext context) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Dešifrování'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: tec8, obscureText: true, autocorrect: false, decoration: const InputDecoration(labelText: 'Heslo')),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
-        ],
+        title: const Text('O aplikaci'),
+        content: const Text('Název: ANDOPED\r\nPlný název: Android Open Editor\r\nAutor: Karel Rais (nezávislý autor)\r\nRok vydání: 2026'),
       ),
     );
   }
 
-  void securityHash(BuildContext context) {
+  void infoLicense(BuildContext context) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Hash dokumentu'),
-        content: const SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Storno')),
-        ],
+        title: const Text('Licence'),
+        content: SizedBox(
+          height: 400,
+          child: SingleChildScrollView(
+            child: const Text('LICENČNÍ PODMÍNKY APLIKACE ANDOPED (= Android Open Editor)\r\n\r\nHLAVA I. ÚDAJE O APLIKACI\r\nNázev: ANDOPED\r\nPlný název: Android Open Editor\r\nAutor: Karel Rais (nezávislý autor)\r\nRok vydání: 2026\r\n\r\nHLAVA II. POUŽITÍ APLIKACE\r\n1. Aplikace je určena primárně jako textový procesor.\r\n2. Použití k jiným účelům (samostatné použití doplňkových funkcí) je povolené a zcela normální.\r\n3. Aplikace se nemá používat k psaní a propagaci závadného obsahu. Zejména pak k propagaci trestných činů, sebevražd, návykových látek, nacistické či jiné diktatury apod.\r\n4. Aplikace je plně zdarma, bez obchodních triků a bez reklam.\r\n5. V případě zájmu o drobný finanční dar (maximálně 50 Kč) pište na github.com/KarelRais/Projekt.\r\n6. Vzhledem k bezplatné distribuci aplikace neplatí žádná oficiální záruka nebo podpora.\r\n\r\nHLAVA III. POUŽITÍ ZDROJOVÉHO KÓDU\r\n1. Zdrojový kód je volně k dispozici na github.com/KarelRais/Projekt.\r\n2. Lze vytvořit aplikaci inspirovanou touto.\r\n3. Při použití zdrojového kódu je třeba: zachovat stejnou licenci, uvést zdroj, umožnit bezplatné použití nové aplikace a přístup k jejímu zdrojovému kódu.\r\n\r\nHLAVA IV. POZNÁMKY\r\n1. Licence není oficiálně závazná, žádné penále za její porušení nevymáháme, ale můžeme odmítnout technickou podporu.\r\n2. Bod II./3. však může být právně závazný, pokud je závadný obsah propagován.'),
+          )
+        )
       ),
     );
-  }*/
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1042,37 +1024,18 @@ class _MyHomePageState extends State<MyHomePage> {
               PopupMenuItem(value: 'hash', child: Text('Hashovací')),
             ],
           ),
-          /*PopupMenuButton<String>(
-            icon: const Icon(Icons.security),
-            onSelected: (value) {
-              switch (value) {
-                case 'encrypt':
-                  securityEncrypt(context);
-                  break;
-                case 'decrypt':
-                  securityDecrypt(context);
-                  break;
-                case 'hash':
-                  securityHash(context);
-                  break;
-              }
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'encrypt', child: Text('Šifrování')),
-              PopupMenuItem(value: 'decrypt', child: Text('Dešifrování')),
-              PopupMenuItem(value: 'hash', child: Text('Hash dokumentu')),
-              PopupMenuItem(value: 'signature', child: Text('Digitální podpis')),
-            ],
-          ),*/
           PopupMenuButton<String>(
             icon: const Icon(Icons.help),
             onSelected: (value) {
               switch (value) {
                 case 'help':
+                  infoHelp(context);
                   break;
                 case 'about':
+                  infoAbout(context);
                   break;
                 case 'license':
+                  infoLicense(context);
                   break;
               }
             },
